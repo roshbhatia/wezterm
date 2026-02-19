@@ -360,6 +360,10 @@ impl crate::TermWindow {
                 quad.set_has_color(false);
 
                 let mut draw_basic = true;
+                let mut final_pos_x = pos_x;
+                let mut final_pos_y = pos_y;
+                let mut final_width = (cursor_range.end - cursor_range.start) as f32 * cell_width;
+                let mut final_height = cell_height;
 
                 if params.password_input {
                     let attrs = cursor_cell
@@ -382,25 +386,36 @@ impl crate::TermWindow {
                         let height =
                             sprite.coords.size.height as f32 * glyph.scale as f32 * height_scale;
 
-                        let pos_y = pos_y
+                        let glyph_pos_y = pos_y
                             + cell_height
                             + (params.render_metrics.descender.get() as f32
                                 - (glyph.y_offset + glyph.bearing_y).get() as f32)
                                 * height_scale;
 
-                        let pos_x = pos_x + (glyph.x_offset + glyph.bearing_x).get() as f32;
-                        quad.set_position(pos_x, pos_y, pos_x + width, pos_y + height);
+                        let glyph_pos_x = pos_x + (glyph.x_offset + glyph.bearing_x).get() as f32;
+                        quad.set_position(
+                            glyph_pos_x,
+                            glyph_pos_y,
+                            glyph_pos_x + width,
+                            glyph_pos_y + height,
+                        );
                         quad.set_texture(sprite.texture_coords());
                         draw_basic = false;
+
+                        // Update cursor dimensions for password lock glyph
+                        final_pos_x = glyph_pos_x;
+                        final_pos_y = glyph_pos_y;
+                        final_width = width;
+                        final_height = height;
                     }
                 }
 
                 if draw_basic {
                     quad.set_position(
-                        pos_x,
-                        pos_y,
-                        pos_x + (cursor_range.end - cursor_range.start) as f32 * cell_width,
-                        pos_y + cell_height,
+                        final_pos_x,
+                        final_pos_y,
+                        final_pos_x + final_width,
+                        final_pos_y + final_height,
                     );
                     quad.set_texture(
                         gl_state
@@ -417,6 +432,18 @@ impl crate::TermWindow {
 
                 quad.set_fg_color(cursor_border_color);
                 quad.set_alt_color_and_mix_value(cursor_border_color_alt, cursor_border_mix);
+
+                // Capture current cursor pixel data for shader uniforms
+                *self.current_cursor_data.borrow_mut() = Some((
+                    final_pos_x,
+                    final_pos_y,
+                    final_width,
+                    final_height,
+                    cursor_border_color.0,
+                    cursor_border_color.1,
+                    cursor_border_color.2,
+                    cursor_border_color.3,
+                ));
             }
         }
 

@@ -401,6 +401,8 @@ pub struct TermWindow {
     window_drag_position: Option<MouseEvent>,
     current_mouse_event: Option<MouseEvent>,
     prev_cursor: PrevCursorPos,
+    // Current frame cursor pixel data (x, y, width, height, r, g, b, a)
+    current_cursor_data: RefCell<Option<(f32, f32, f32, f32, f32, f32, f32, f32)>>,
     last_scroll_info: RenderableDimensions,
 
     tab_state: RefCell<HashMap<TabId, TabState>>,
@@ -719,6 +721,7 @@ impl TermWindow {
             current_mouse_event: None,
             current_modifier_and_leds: Default::default(),
             prev_cursor: PrevCursorPos::new(),
+            current_cursor_data: RefCell::new(None),
             last_scroll_info: RenderableDimensions::default(),
             tab_state: RefCell::new(HashMap::new()),
             pane_state: RefCell::new(HashMap::new()),

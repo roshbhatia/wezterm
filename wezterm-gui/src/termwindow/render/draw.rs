@@ -120,10 +120,50 @@ impl crate::TermWindow {
                     });
                     cleared = true;
 
+                    // Get current cursor data
+                    let current_cursor_data = self.current_cursor_data.borrow();
+                    let (current_cursor_rect, current_cursor_color) =
+                        if let Some(data) = *current_cursor_data {
+                            (
+                                [data.0, data.1, data.2, data.3],
+                                [data.4, data.5, data.6, data.7],
+                            )
+                        } else {
+                            ([0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0])
+                        };
+
+                    // Get previous cursor data
+                    let (prev_x, prev_y, prev_w, prev_h) = self.prev_cursor.get_pixel_rect();
+                    let previous_cursor_rect = [prev_x, prev_y, prev_w, prev_h];
+
+                    // Get cursor change timestamp
+                    let cursor_change_time_ms = self
+                        .prev_cursor
+                        .last_cursor_movement()
+                        .duration_since(self.created)
+                        .as_millis() as u32;
+
+                    // Viewport size
+                    let viewport_size = [
+                        self.dimensions.pixel_width as f32,
+                        self.dimensions.pixel_height as f32,
+                    ];
+
+                    // Cursor trail parameters (TODO: get from config)
+                    // For now using defaults: duration=150ms, trail_size=0.5, blur=1.0, thickness=0.9
+                    let cursor_trail_params = [0.15, 0.5, 1.0, 0.9];
+
                     uniforms = webgpu.create_uniform(ShaderUniform {
                         foreground_text_hsb,
                         milliseconds,
                         projection,
+                        current_cursor_rect,
+                        previous_cursor_rect,
+                        current_cursor_color,
+                        cursor_change_time_ms,
+                        viewport_size,
+                        cursor_trail_params,
+                        _padding: [0.0, 0.0],
                     });
 
                     render_pass.set_pipeline(&webgpu.render_pipeline);

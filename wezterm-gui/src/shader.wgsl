@@ -39,6 +39,13 @@ struct ShaderUniform {
   foreground_text_hsb: vec3<f32>,
   milliseconds: u32,
   projection: mat4x4<f32>,
+  current_cursor_rect: vec4<f32>,
+  previous_cursor_rect: vec4<f32>,
+  current_cursor_color: vec4<f32>,
+  cursor_change_time_ms: u32,
+  viewport_size: vec2<f32>,
+  cursor_trail_params: vec4<f32>,
+  _padding: vec2<f32>,
 };
 @group(0) @binding(0) var<uniform> uniforms: ShaderUniform;
 

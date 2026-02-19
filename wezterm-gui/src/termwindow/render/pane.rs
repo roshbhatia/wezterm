@@ -79,7 +79,27 @@ impl crate::TermWindow {
 
         let cursor = pos.pane.get_cursor_position();
         if pos.is_active {
-            self.prev_cursor.update(&cursor);
+            // Update prev_cursor with pixel data from the previous frame's current cursor
+            if let Some(prev_frame_data) = *self.current_cursor_data.borrow() {
+                let pixel_rect = (
+                    prev_frame_data.0,
+                    prev_frame_data.1,
+                    prev_frame_data.2,
+                    prev_frame_data.3,
+                );
+                let color = (
+                    prev_frame_data.4,
+                    prev_frame_data.5,
+                    prev_frame_data.6,
+                    prev_frame_data.7,
+                );
+                self.prev_cursor
+                    .update_with_pixels(&cursor, pixel_rect, color);
+            } else {
+                self.prev_cursor.update(&cursor);
+            }
+            // Clear current_cursor_data for this frame; it will be repopulated during rendering
+            *self.current_cursor_data.borrow_mut() = None;
         }
 
         let pane_id = pos.pane.pane_id();

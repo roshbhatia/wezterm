@@ -19,6 +19,15 @@ pub struct ShaderUniform {
     pub projection: [[f32; 4]; 4],
     // sampler2D atlas_nearest_sampler;
     // sampler2D atlas_linear_sampler;
+
+    // Cursor trail data
+    pub current_cursor_rect: [f32; 4], // x, y, width, height (pixel coords)
+    pub previous_cursor_rect: [f32; 4], // x, y, width, height (pixel coords)
+    pub current_cursor_color: [f32; 4], // RGBA color
+    pub cursor_change_time_ms: u32,    // Timestamp when cursor moved
+    pub viewport_size: [f32; 2],       // Screen width, height
+    pub cursor_trail_params: [f32; 4], // [duration, trail_size, blur, thickness]
+    pub _padding: [f32; 2],            // Align to 16 bytes
 }
 
 pub struct WebGpuState {
