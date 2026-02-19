@@ -636,6 +636,26 @@ pub struct Config {
     #[dynamic(default = "linear_ease")]
     pub cursor_blink_ease_out: EasingFunction,
 
+    /// Enable cursor trail effect (smooth cursor animation)
+    #[dynamic(default)]
+    pub cursor_trail_enabled: bool,
+
+    /// Duration of cursor trail animation in seconds
+    #[dynamic(default = "default_cursor_trail_duration")]
+    pub cursor_trail_duration: f32,
+
+    /// Trail size: 0.0 = no smear (all corners move together), 1.0 = max smear
+    #[dynamic(default = "default_cursor_trail_size")]
+    pub cursor_trail_size: f32,
+
+    /// Blur amount for trail antialiasing (in pixels)
+    #[dynamic(default = "default_cursor_trail_blur")]
+    pub cursor_trail_blur: f32,
+
+    /// Trail thickness: 1.0 = full cursor height, <1.0 = thinner
+    #[dynamic(default = "default_cursor_trail_thickness")]
+    pub cursor_trail_thickness: f32,
+
     #[dynamic(default = "default_anim_fps")]
     pub animation_fps: u8,
 
@@ -1667,6 +1687,22 @@ fn default_ratelimit_line_prefetches_per_second() -> u32 {
 
 fn default_cursor_blink_rate() -> u64 {
     800
+}
+
+fn default_cursor_trail_duration() -> f32 {
+    0.15 // 150ms for smooth animation
+}
+
+fn default_cursor_trail_size() -> f32 {
+    0.5 // Moderate smear (0.0=none, 1.0=max)
+}
+
+fn default_cursor_trail_blur() -> f32 {
+    1.0 // 1 pixel blur for antialiasing
+}
+
+fn default_cursor_trail_thickness() -> f32 {
+    0.9 // Slightly thinner than full cursor height
 }
 
 fn default_text_blink_rate() -> u64 {

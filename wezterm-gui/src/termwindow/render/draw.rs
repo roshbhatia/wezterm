@@ -149,9 +149,18 @@ impl crate::TermWindow {
                         self.dimensions.pixel_height as f32,
                     ];
 
-                    // Cursor trail parameters (TODO: get from config)
-                    // For now using defaults: duration=150ms, trail_size=0.5, blur=1.0, thickness=0.9
-                    let cursor_trail_params = [0.15, 0.5, 1.0, 0.9];
+                    // Cursor trail parameters from config
+                    let cursor_trail_params = if self.config.cursor_trail_enabled {
+                        [
+                            self.config.cursor_trail_duration,
+                            self.config.cursor_trail_size,
+                            self.config.cursor_trail_blur,
+                            self.config.cursor_trail_thickness,
+                        ]
+                    } else {
+                        // Disabled: use duration of 0 which shader checks
+                        [0.0, 0.0, 0.0, 0.0]
+                    };
 
                     uniforms = webgpu.create_uniform(ShaderUniform {
                         foreground_text_hsb,
