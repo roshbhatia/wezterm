@@ -80,7 +80,7 @@ impl crate::TermWindow {
         let cursor = pos.pane.get_cursor_position();
         if pos.is_active {
             // Update prev_cursor with pixel data from the previous frame's current cursor
-            if let Some(prev_frame_data) = *self.current_cursor_data.borrow() {
+            let cursor_moved = if let Some(prev_frame_data) = *self.current_cursor_data.borrow() {
                 let pixel_rect = (
                     prev_frame_data.0,
                     prev_frame_data.1,
@@ -93,11 +93,24 @@ impl crate::TermWindow {
                     prev_frame_data.6,
                     prev_frame_data.7,
                 );
+                let prev_pos = self.prev_cursor.get_pixel_rect();
+                let moved = (prev_pos.0 != pixel_rect.0) || (prev_pos.1 != pixel_rect.1);
                 self.prev_cursor
                     .update_with_pixels(&cursor, pixel_rect, color);
+                moved
             } else {
                 self.prev_cursor.update(&cursor);
+                false
+            };
+
+            // Schedule frame invalidation during cursor trail animation
+            if cursor_moved && config.cursor_trail_enabled {
+                let cursor_change_time = self.prev_cursor.last_cursor_movement();
+                let duration = std::time::Duration::from_secs_f32(config.cursor_trail_duration);
+                let animation_end = cursor_change_time + duration;
+                self.update_next_frame_time(Some(animation_end));
             }
+
             // Clear current_cursor_data for this frame; it will be repopulated during rendering
             *self.current_cursor_data.borrow_mut() = None;
         }
