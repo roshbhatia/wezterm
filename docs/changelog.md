@@ -84,6 +84,12 @@ As features stabilize some brief notes about them will accumulate here.
   option to scale the vertical spacing of rows in the command palette,
   independently of [line_height](config/lua/config/line_height.md) which is for terminal cells only.
   Thanks to @rafaelsteil! #8096
+* Kitty graphics protocol: support for [Unicode
+  placeholders](https://sw.kovidgoyal.net/kitty/graphics-protocol/#unicode-placeholders):
+  virtual placements (`U=1`) and `U+10EEEE` placeholder cells. Programs that
+  position images through the text grid (eg: `textual-image`, `ratatui-image`)
+  now display them in the right place instead of at the cursor position, and
+  the placeholder character is no longer passed through to font rendering.
 * [wezterm.serde](config/lua/wezterm.serde/index.md) module for serialization
   and deserialization of JSON, TOML and YAML. Thanks to @expnn! #4969
 * `wezterm ssh` now supports agent forwarding. Thanks to @Riatre! #5345
