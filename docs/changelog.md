@@ -24,6 +24,9 @@ As features stabilize some brief notes about them will accumulate here.
 #### Changed
 * fonts: Default dim/bold text now looks more contrasting, see #8049 for examples.
   Thanks to @bfoersterling (testing) & @hphng for his first OSS contribution! #8097
+* Semantic zones (and thus `ScrollToPrompt`, copy-mode move-by-zone,
+  selection-by-zone, and the `pane:get_semantic_zones()` Lua API) now work
+  for panes served by a remote mux domain. #2880
 * DECRQCRA is now disabled by default to prevent silent screen scraping.
   Set `enable_checksum_rectangular_area = true` to re-enable it.
   Thanks to @jquast! #7701

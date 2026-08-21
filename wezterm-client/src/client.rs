@@ -1429,6 +1429,11 @@ impl Client {
     );
     rpc!(get_lines, GetLines, GetLinesResponse);
     rpc!(
+        get_semantic_zones,
+        GetSemanticZones,
+        GetSemanticZonesResponse
+    );
+    rpc!(
         get_dimensions,
         GetPaneRenderableDimensions,
         GetPaneRenderableDimensionsResponse
