@@ -286,6 +286,102 @@ impl TmuxDomainState {
         return Ok(pane);
     }
 
+    /// Reconcile the local pane set for a window against the authoritative
+    /// list reported by tmux: add panes that exist remotely but not locally
+    /// (e.g. a `split-window` initiated by the remote/another client), then
+    /// prune panes that have gone away.
+    fn reconcile_panes(
+        &self,
+        window_id: TmuxWindowId,
+        panes: &[PaneItem],
+        pane_set: &HashSet<TmuxPaneId>,
+    ) -> anyhow::Result<()> {
+        let Some(current_session) = *self.tmux_session.lock() else {
+            return Ok(());
+        };
+
+        for pane in panes.iter() {
+            if pane.session_id != current_session || pane.window_id != window_id {
+                continue;
+            }
+            if self.check_pane_attached(window_id, pane.pane_id) {
+                continue;
+            }
+            if let Err(err) = self.insert_remote_pane(window_id, pane) {
+                log::error!(
+                    "failed to insert remote tmux pane %{}: {:#}",
+                    pane.pane_id,
+                    err
+                );
+            }
+        }
+
+        self.remove_detached_pane(window_id, pane_set)
+    }
+
+    /// Materialize a pane that appeared on the remote side into the existing
+    /// local tab. The pane is inserted by splitting the tab's active pane;
+    /// the split direction is inferred from the tmux-reported geometry. The
+    /// exact sizing is subsequently corrected by the normal resize handshake,
+    /// so an approximate split here is sufficient to get the pane rendering
+    /// and wired up for I/O.
+    fn insert_remote_pane(
+        &self,
+        window_id: TmuxWindowId,
+        pane: &PaneItem,
+    ) -> anyhow::Result<()> {
+        let mux = Mux::get();
+
+        let tab_id = match self.gui_tabs.lock().get(&window_id) {
+            Some(tab) => tab.tab_id,
+            None => anyhow::bail!("window {window_id} is not attached"),
+        };
+
+        let tab = mux
+            .get_tab(tab_id)
+            .ok_or_else(|| anyhow!("invalid tab id {tab_id}"))?;
+
+        let base_pane = tab
+            .get_active_pane()
+            .ok_or_else(|| anyhow!("tab {tab_id} has no pane to split from"))?;
+        let base_pane_id = base_pane.pane_id();
+
+        // Infer split direction from the new pane's position. A pane that
+        // starts below the top has been stacked vertically; one that starts
+        // to the right of the left edge has been placed side-by-side.
+        let direction = if pane.pane_top > 0 {
+            SplitDirection::Vertical
+        } else if pane.pane_left > 0 {
+            SplitDirection::Horizontal
+        } else {
+            SplitDirection::Vertical
+        };
+
+        let split_request = SplitRequest {
+            direction,
+            target_is_second: true,
+            top_level: false,
+            size: SplitSize::Percent(50),
+        };
+
+        let local_pane = self.split_pane(tab_id, base_pane_id, pane.pane_id, split_request)?;
+
+        // Feed any output that arrived before the pane existed. This path
+        // does not capture-pane, so draining here is the correct ordering.
+        self.drain_backlog(pane.pane_id);
+
+        if pane.cursor_x != 0 || pane.cursor_y != 0 {
+            self.set_pane_cursor_position(
+                &local_pane,
+                pane.cursor_x as usize,
+                pane.cursor_y as usize,
+            );
+        }
+
+        log::info!("materialized remote tmux pane %{}", pane.pane_id);
+        Ok(())
+    }
+
     fn sync_pane_state(&self, panes: &[PaneItem]) -> anyhow::Result<()> {
         let Some(current_session) = *self.tmux_session.lock() else {
             return Ok(());
@@ -324,13 +420,16 @@ impl TmuxDomainState {
                 } else {
                     // we have capture, so remove the backlog
                     let _ = self.backlog.lock().remove(&pane.pane_id);
-                    if (pane.cursor_x + pane.cursor_y) != 0 {
-                        self.set_pane_cursor_position(
-                            &local_pane,
-                            pane.cursor_x as usize,
-                            pane.cursor_y as usize,
-                        );
-                    }
+                    // Apply the authoritative tmux cursor position
+                    // unconditionally. The capture-pane replay leaves the
+                    // cursor at the end of the restored history, so we must
+                    // move it back even when the real position is (0, 0),
+                    // otherwise the cursor renders in the wrong place.
+                    self.set_pane_cursor_position(
+                        &local_pane,
+                        pane.cursor_x as usize,
+                        pane.cursor_y as usize,
+                    );
                 }
                 if pane.pane_active {
                     let gui_tabs = self.gui_tabs.lock();
@@ -752,9 +851,13 @@ impl TmuxCommand for ListAllPanes {
                 if !self.prune {
                     return tmux_domain.inner.sync_pane_state(&items);
                 } else {
+                    // A layout change (split added/removed on the remote side,
+                    // or panes rebalanced) triggers this path. Reconcile the
+                    // local pane set with the remote: materialize panes we
+                    // don't have yet, then remove the ones that have gone away.
                     return tmux_domain
                         .inner
-                        .remove_detached_pane(self.window_id, &pane_set);
+                        .reconcile_panes(self.window_id, &items, &pane_set);
                 }
             }
         }

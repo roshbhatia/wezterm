@@ -158,18 +158,13 @@ impl TmuxDomainState {
                     }));
                 }
                 Event::Output { pane, text } => {
-                    let pane_map = self.remote_panes.lock();
-                    if let Some(ref_pane) = pane_map.get(pane) {
-                        let mut tmux_pane = ref_pane.lock();
-                        if let Err(err) = tmux_pane.output_write.write_all(text) {
-                            log::error!("Failed to write tmux data to output: {:#}", err);
-                        }
-                    } else {
-                        // the output may come early then pane is ready, in this case we
-                        // backlog it
-                        self.backlog.lock().insert(*pane, text.to_vec());
-                        log::debug!("Tmux pane {} havn't been attached", pane);
-                    }
+                    self.dispatch_pane_output(*pane, text);
+                }
+                // `%extended-output` is emitted instead of `%output` for panes
+                // that are subject to control-mode flow control (pause-after /
+                // per-pane subscriptions). We treat the payload identically.
+                Event::ExtendedOutput { pane, text } => {
+                    self.dispatch_pane_output(*pane, text);
                 }
                 Event::SessionChanged { session, name: _ } => {
                     *self.tmux_session.lock() = Some(*session);
@@ -269,6 +264,46 @@ impl TmuxDomainState {
             }
         })
         .detach();
+    }
+
+    /// Write pane output bytes to the local pane's pty. If the local pane
+    /// hasn't been materialized yet, the bytes are appended to a per-pane
+    /// backlog to be drained once the pane is created (see `drain_backlog`).
+    fn dispatch_pane_output(&self, pane: TmuxPaneId, text: &[u8]) {
+        let pane_map = self.remote_panes.lock();
+        if let Some(ref_pane) = pane_map.get(&pane) {
+            let mut tmux_pane = ref_pane.lock();
+            if let Err(err) = tmux_pane.output_write.write_all(text) {
+                log::error!("Failed to write tmux data to output: {:#}", err);
+            }
+        } else {
+            // The output may arrive before the pane is ready; backlog it.
+            // Append rather than overwrite so multiple early chunks are kept
+            // in order.
+            self.backlog
+                .lock()
+                .entry(pane)
+                .or_default()
+                .extend_from_slice(text);
+            log::debug!("Tmux pane {} havn't been attached", pane);
+        }
+    }
+
+    /// Flush any backlogged output for a freshly created pane into its pty.
+    /// Should be called right after a pane is materialized on a path that
+    /// does not perform a capture-pane replay (capture already carries the
+    /// full history, so draining there would duplicate/reorder content).
+    pub(crate) fn drain_backlog(&self, pane_id: TmuxPaneId) {
+        let text = self.backlog.lock().remove(&pane_id);
+        if let Some(text) = text {
+            let pane_map = self.remote_panes.lock();
+            if let Some(ref_pane) = pane_map.get(&pane_id) {
+                let mut ref_pane = ref_pane.lock();
+                if let Err(err) = ref_pane.output_write.write_all(&text) {
+                    log::error!("Failed to write tmux backlog to output: {:#}", err);
+                }
+            }
+        }
     }
 
     /// create a standalone window for tmux tabs
