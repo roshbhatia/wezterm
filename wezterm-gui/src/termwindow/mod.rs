@@ -1000,9 +1000,11 @@ impl TermWindow {
                 Ok(true)
             }
             WindowEvent::AdviseModifiersLedStatus(modifiers, leds) => {
-                self.current_modifier_and_leds = (modifiers, leds);
-                self.update_title();
-                window.invalidate();
+                if self.current_modifier_and_leds != (modifiers, leds) {
+                    self.current_modifier_and_leds = (modifiers, leds);
+                    self.update_title();
+                    window.invalidate();
+                }
                 Ok(true)
             }
             WindowEvent::RawKeyEvent(event) => {
@@ -1019,11 +1021,12 @@ impl TermWindow {
                 } else {
                     log::trace!("DeadKeyStatus now: {:?}", status);
                 }
-                self.dead_key_status = status;
-                self.update_title();
-                // Ensure that we repaint so that any composing
-                // text is updated
-                window.invalidate();
+                if self.dead_key_status != status {
+                    self.dead_key_status = status;
+                    self.update_title();
+                    // Ensure that we repaint so that any composing text is updated.
+                    window.invalidate();
+                }
                 Ok(true)
             }
             WindowEvent::NeedRepaint => {
