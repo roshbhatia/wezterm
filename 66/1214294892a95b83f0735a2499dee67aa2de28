@@ -1,0 +1,20 @@
+wezterm-gui/src/termwindow/render/pane.rs
+  s_6a59011b119c6f::t_1f2650b567812b 84-86,101-105,107,119,145
+  s_6a59011b119c6f::t_c5a09b42169e08 153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "661214294892a95b83f0735a2499dee67aa2de28",
+  "prompts": {},
+  "sessions": {
+    "s_6a59011b119c6f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a32a-8f2d-7b71-a53f-f90208b124f1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
