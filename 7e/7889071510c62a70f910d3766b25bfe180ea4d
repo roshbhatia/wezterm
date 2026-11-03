@@ -1,0 +1,51 @@
+codec/src/lib.rs
+  s_2df4c1d29412fe::t_39a3f72b83d1c7 445,916
+docs/config/lua/pane/get_program_status.md
+  s_2df4c1d29412fe::t_2fcb847b08aa16 1-36
+lua-api-crates/mux/src/pane.rs
+  s_2df4c1d29412fe::t_39a96418b08da7 149-154
+mux/src/localpane.rs
+  s_2df4c1d29412fe::t_a58e20cd1be232 291,466-469
+mux/src/pane.rs
+  s_2df4c1d29412fe::t_3871a161e29a65 240-242
+term/Cargo.toml
+  s_2df4c1d29412fe::t_6d0ed38a6a3fb8 18
+term/src/lib.rs
+  s_2df4c1d29412fe::t_6cb6493759e215 29-31
+term/src/program_status.rs
+  s_2df4c1d29412fe::t_4ff2317e1347a2 1-215
+term/src/terminal.rs
+  s_2df4c1d29412fe::t_bf11e7d29ba747 74
+term/src/terminalstate/mod.rs
+  s_2df4c1d29412fe::t_128ea8f57f6a22 376,586,661-677
+term/src/terminalstate/performer.rs
+  s_2df4c1d29412fe::t_761382f16b7b03 723-725,779-789,887,894
+term/src/test/mod.rs
+  s_2df4c1d29412fe::t_8fa8769fca8602 10
+term/src/test/program_status.rs
+  s_2df4c1d29412fe::t_476313c65d35de 1-166
+wezterm-client/src/pane/clientpane.rs
+  s_2df4c1d29412fe::t_8591f41321ca0a 53,137,144-158,215-217,351-354
+wezterm-gui/src/termwindow/mod.rs
+  s_2df4c1d29412fe::t_177db7711872d7 1230-1236,1496
+wezterm-mux-server-impl/src/sessionhandler.rs
+  s_2df4c1d29412fe::t_bd3a82d40159b6 40,59-61,142
+Cargo.lock
+  s_2df4c1d29412fe::t_c23b1b0aba129b 2237,7408
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7e7889071510c62a70f910d3766b25bfe180ea4d",
+  "prompts": {},
+  "sessions": {
+    "s_2df4c1d29412fe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a223-7da2-7e93-a06a-44201e93b6bc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
