@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-latest
+          - runner: macos-15
             system: aarch64-darwin
           - runner: ubuntu-latest
             system: x86_64-linux
