@@ -282,7 +282,11 @@ impl crate::TermWindow {
         }
 
         if let Some(floating_pane) = self.get_floating_pane_to_render() {
-            mux::Mux::get().record_focus_for_current_identity(floating_pane.pane.pane_id());
+            self.update_text_cursor(&floating_pane);
+            if focused {
+                floating_pane.pane.advise_focus();
+                mux::Mux::get().record_focus_for_current_identity(floating_pane.pane.pane_id());
+            }
             self.paint_pane(&floating_pane, &mut floating_pane_layers)
                 .context("paint_pane")?;
             self.paint_floating_pane_border(floating_pane, &mut floating_pane_layers)

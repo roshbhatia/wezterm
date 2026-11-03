@@ -5,6 +5,26 @@ use config::{ConfigHandle, Dimension, DimensionContext, FloatingPaneBorderConfig
 use mux::tab::PositionedPane;
 use window::parameters::Border;
 
+fn floating_border_rects(
+    background: euclid::Rect<f32, window::PixelUnit>,
+    border: &Border,
+) -> [euclid::Rect<f32, window::PixelUnit>; 4] {
+    let left = border.left.get() as f32;
+    let right = border.right.get() as f32;
+    let top = border.top.get() as f32;
+    let bottom = border.bottom.get() as f32;
+    let x = background.origin.x;
+    let y = background.origin.y;
+    let width = background.size.width;
+    let height = background.size.height;
+    [
+        euclid::rect(x - left, y - top, left, height + top + bottom),
+        euclid::rect(x, y - top, width, top),
+        euclid::rect(x, y + height, width, bottom),
+        euclid::rect(x + width, y - top, right, height + top + bottom),
+    ]
+}
+
 impl crate::TermWindow {
     pub fn paint_window_borders(
         &mut self,
@@ -151,99 +171,53 @@ impl crate::TermWindow {
         )
     }
 
+    pub fn floating_pane_background_rect(
+        &self,
+        pos: &PositionedPane,
+    ) -> anyhow::Result<euclid::Rect<f32, window::PixelUnit>> {
+        let (padding_left, padding_top) = self.padding_left_top();
+        let os_border = self.get_os_border();
+        let top_bar_height = if self.show_tab_bar && !self.config.tab_bar_at_bottom {
+            self.tab_bar_pixel_height()?
+        } else {
+            0.0
+        };
+        let top_pixel_y = top_bar_height + padding_top + os_border.top.get() as f32;
+        Ok(self.compute_background_rect_with_scrollbar(
+            pos,
+            padding_left,
+            padding_top,
+            &os_border,
+            top_pixel_y,
+        ))
+    }
+
     pub fn paint_floating_pane_border(
         &mut self,
         pos: PositionedPane,
         layers: &mut TripleLayerQuadAllocator,
     ) -> anyhow::Result<()> {
-        let (padding_left, padding_top) = self.padding_left_top();
         let config = self.config.floating_pane_border.clone();
-        let floating_pane_border = self.get_floating_pane_border();
-
-        let os_border = self.get_os_border();
-        let tab_bar_height = if self.show_tab_bar {
-            self.tab_bar_pixel_height()?
-        } else {
-            0.
-        };
-
-        let (top_bar_height, _bottom_bar_height) = if self.config.tab_bar_at_bottom {
-            (0.0, tab_bar_height)
-        } else {
-            (tab_bar_height, 0.0)
-        };
-
-        let top_pixel_y = top_bar_height + padding_top + os_border.top.get() as f32;
-        let background_rect = self.compute_background_rect_with_scrollbar(
-            &pos,
-            padding_top,
-            padding_left,
-            &os_border,
-            top_pixel_y,
-        );
-
-        let pos_y = background_rect.origin.y - floating_pane_border.top.get() as f32;
-        let pos_x = background_rect.origin.x - floating_pane_border.left.get() as f32;
-        let pixel_width = background_rect.size.width + floating_pane_border.left.get() as f32;
-        let pixel_height = background_rect.size.height + floating_pane_border.top.get() as f32;
-
-        self.filled_rectangle(
-            layers,
-            2,
-            euclid::rect(
-                pos_x,
-                pos_y,
-                floating_pane_border.left.get() as f32,
-                pixel_height + floating_pane_border.top.get() as f32,
-            ),
-            config
-                .left_color
-                .map(|c| c.to_linear())
-                .unwrap_or(os_border.color),
-        )?;
-        self.filled_rectangle(
-            layers,
-            2,
-            euclid::rect(
-                pos_x + floating_pane_border.left.get() as f32,
-                pos_y,
-                pixel_width,
-                floating_pane_border.top.get() as f32,
-            ),
-            config
-                .top_color
-                .map(|c| c.to_linear())
-                .unwrap_or(os_border.color),
-        )?;
-        self.filled_rectangle(
-            layers,
-            2,
-            euclid::rect(
-                pos_x + floating_pane_border.left.get() as f32,
-                pos_y + pixel_height,
-                pixel_width,
-                floating_pane_border.bottom.get() as f32,
-            ),
-            config
-                .bottom_color
-                .map(|c| c.to_linear())
-                .unwrap_or(os_border.color),
-        )?;
-        self.filled_rectangle(
-            layers,
-            2,
-            euclid::rect(
-                pos_x + pixel_width,
-                pos_y,
-                floating_pane_border.right.get() as f32,
-                pixel_height + floating_pane_border.top.get() as f32,
-            ),
-            config
-                .right_color
-                .map(|c| c.to_linear())
-                .unwrap_or(os_border.color),
-        )?;
-
+        let border = self.get_floating_pane_border();
+        let background = self.floating_pane_background_rect(&pos)?;
+        let colors = [
+            config.left_color,
+            config.top_color,
+            config.bottom_color,
+            config.right_color,
+        ];
+        for (rect, color) in
+            IntoIterator::into_iter(floating_border_rects(background, &border)).zip(colors)
+        {
+            self.filled_rectangle(
+                layers,
+                2,
+                rect,
+                color
+                    .map(|c| c.to_linear())
+                    .unwrap_or(self.get_os_border().color),
+            )?;
+        }
         Ok(())
     }
 
@@ -351,5 +325,31 @@ impl crate::TermWindow {
             &self.dimensions,
             &self.render_metrics,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn asymmetric_floating_borders_stay_outside_the_background() {
+        let border = Border {
+            left: ULength::new(4),
+            right: ULength::new(8),
+            top: ULength::new(6),
+            bottom: ULength::new(10),
+            ..Default::default()
+        };
+        let sides = floating_border_rects(euclid::rect(100.0, 80.0, 400.0, 240.0), &border);
+        assert_eq!(
+            sides,
+            [
+                euclid::rect(96.0, 74.0, 4.0, 256.0),
+                euclid::rect(100.0, 74.0, 400.0, 6.0),
+                euclid::rect(100.0, 320.0, 400.0, 10.0),
+                euclid::rect(500.0, 74.0, 8.0, 256.0),
+            ]
+        );
     }
 }

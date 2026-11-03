@@ -130,8 +130,8 @@ impl crate::TermWindow {
 
         let background_rect = self.compute_background_rect_with_scrollbar(
             &pos,
-            padding_top,
             padding_left,
+            padding_top,
             &border,
             top_pixel_y,
         );

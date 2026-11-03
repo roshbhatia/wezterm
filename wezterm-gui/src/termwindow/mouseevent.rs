@@ -685,10 +685,18 @@ impl super::TermWindow {
         );
 
         let panes = if let Some(floating_pane) = self.get_floating_pane_to_render() {
-            let mouse_in_floating_pane = position.column >= floating_pane.left
-                && position.column <= floating_pane.left + floating_pane.width
-                && position.row as usize >= floating_pane.top
-                && position.row as usize <= floating_pane.top + floating_pane.height;
+            let mouse_in_floating_pane = self
+                .floating_pane_background_rect(&floating_pane)
+                .map(|rect| {
+                    let border = self.get_floating_pane_border();
+                    let x = event.coords.x as f32;
+                    let y = event.coords.y as f32;
+                    x >= rect.origin.x - border.left.get() as f32
+                        && x < rect.max_x() + border.right.get() as f32
+                        && y >= rect.origin.y - border.top.get() as f32
+                        && y < rect.max_y() + border.bottom.get() as f32
+                })
+                .unwrap_or(false);
 
             if !mouse_in_floating_pane {
                 let mux = Mux::get();
