@@ -42,6 +42,7 @@ jobs:
           result/bin/wezterm --version
           test -x result/bin/wezterm-gui
           test -x result/bin/wezterm-mux-server
+          test -r result/share/wezterm/shaders/cursor-trail.wgsl
           nix path-info --recursive ./result | cachix push roshbhatia
           nix path-info --json ./result > nix-${{ matrix.system }}.json
       - uses: actions/upload-artifact@v4

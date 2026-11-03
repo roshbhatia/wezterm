@@ -1878,9 +1878,9 @@ fn fs_postprocess(in: VertexOutput) -> @location(0) vec4<f32> {
         staging_buffer.unmap();
     }
 
-    /// Render an imported shader through the full path; returns pixel data
+    /// Render a shader through the full path; returns pixel data
     /// and the padded bytes-per-row.
-    fn render_imported_shader(
+    fn render_postprocess_shader(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         shader_source: &str,
@@ -2004,12 +2004,16 @@ fn fs_postprocess(in: VertexOutput) -> @location(0) vec4<f32> {
         std::fs::write(&shader_path, shader_source).unwrap();
 
         let pipeline = {
-            let shader_path = ShaderPathBuf::Imported(ImportedShaderPathBuf::Ghostty(
-                GhosttyPathBuf::new(shader_path),
-            ));
+            let shader_path = if shader_name.ends_with(".wgsl") {
+                ShaderPathBuf::Native(shader_path)
+            } else {
+                ShaderPathBuf::Imported(ImportedShaderPathBuf::Ghostty(GhosttyPathBuf::new(
+                    shader_path,
+                )))
+            };
             let resolved = resolve_shader(&shader_path).unwrap();
             compile_postprocess_shader(device, &resolved, format, &texture_bgl, &uniform_bgl)
-                .expect("Imported shader should compile")
+                .expect("Post-process shader should compile")
         };
 
         // --- Render pass ---
@@ -2101,7 +2105,7 @@ fn fs_postprocess(in: VertexOutput) -> @location(0) vec4<f32> {
             return;
         };
 
-        let (data, bytes_per_row) = render_imported_shader(
+        let (data, bytes_per_row) = render_postprocess_shader(
             &device,
             &queue,
             include_str!("shaders/test_fixtures/negative.glsl"),
@@ -2137,6 +2141,36 @@ fn fs_postprocess(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     #[test]
+    fn cursor_trail_fades_back_to_the_terminal_texture() {
+        let Some((device, queue)) = create_test_device() else {
+            eprintln!("Skipping cursor trail rendering test: no GPU adapter available");
+            return;
+        };
+        let mut uniform = PostProcessUniform {
+            current_cursor: [20.0, 1.0, 2.0, 2.0],
+            previous_cursor: [-100.0, 1.0, 2.0, 2.0],
+            current_cursor_color: [0.0, 1.0, 0.0, 1.0],
+            time: 0.04,
+            ..Default::default()
+        };
+        let shader = include_str!("../../../assets/shaders/cursor-trail.wgsl");
+        let (active, stride) =
+            render_postprocess_shader(&device, &queue, shader, "cursor-trail.wgsl", uniform);
+        assert!((0..4).any(|row| (0..4).any(|col| active[row * stride + col * 4 + 1] > 0)));
+        uniform.time = 1.0;
+        let (settled, stride) =
+            render_postprocess_shader(&device, &queue, shader, "cursor-trail.wgsl", uniform);
+        for row in 0..4 {
+            for col in 0..4 {
+                assert_eq!(
+                    &settled[row * stride + col * 4..row * stride + col * 4 + 4],
+                    &[255, 0, 0, 255]
+                );
+            }
+        }
+    }
+
+    #[test]
     fn test_imported_cursor_shader_renders() {
         let Some((device, queue)) = create_test_device() else {
             eprintln!("Skipping test_imported_cursor_shader_renders: no GPU adapter available");
@@ -2157,7 +2191,7 @@ fn fs_postprocess(in: VertexOutput) -> @location(0) vec4<f32> {
             _padding_2: [0; 3],
         };
 
-        let (data, bytes_per_row) = render_imported_shader(
+        let (data, bytes_per_row) = render_postprocess_shader(
             &device,
             &queue,
             include_str!("shaders/test_fixtures/cursor_lightning.glsl"),

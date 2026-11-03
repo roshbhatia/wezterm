@@ -176,6 +176,8 @@
             '';
 
             postInstall = ''
+              install -Dm644 assets/shaders/cursor-trail.wgsl $out/share/wezterm/shaders/cursor-trail.wgsl
+
               mkdir -p $out/nix-support
               echo "${finalAttrs.passthru.terminfo}" >> $out/nix-support/propagated-user-env-packages
 
@@ -220,6 +222,8 @@
                 doCheck = false;
 
                 postInstall = ''
+              install -Dm644 assets/shaders/cursor-trail.wgsl $out/share/wezterm/shaders/cursor-trail.wgsl
+
                   install -Dm644 assets/shell-integration/wezterm.sh -t $out/etc/profile.d
                   install -Dm644 ${finalAttrs.passthru.terminfo}/share/terminfo/w/wezterm -t $out/share/terminfo/w
                 '';

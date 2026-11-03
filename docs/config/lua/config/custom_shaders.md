@@ -97,3 +97,11 @@ config.custom_shaders = {
   'shaders/scanlines.wgsl',
 }
 ```
+
+## Cursor-only animation
+
+Set `custom_shaders_animation_duration_ms` to bound redraws after cursor motion.
+For the packaged `share/wezterm/shaders/cursor-trail.wgsl`, use `140` milliseconds.
+The shader settles within 120 milliseconds; the extra frame clears its last trace.
+The default is `nil`, which keeps continuous redraws for time-based effects.
+A cursor-only chain can remain enabled without continuously repainting an idle terminal.

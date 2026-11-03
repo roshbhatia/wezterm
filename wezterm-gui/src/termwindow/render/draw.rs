@@ -62,9 +62,14 @@ impl crate::TermWindow {
 
         // When post-processing is active, render layers to the intermediate
         // texture instead of directly to the surface.
-        let has_postprocess = self.post_process.is_some();
-        let render_target_view = if has_postprocess {
-            &self.post_process.as_ref().unwrap().intermediate_view
+        let post_process = self.post_process.as_ref().filter(|_| {
+            self.post_process_cursor.animation_active(
+                self.created.elapsed().as_secs_f32(),
+                self.config.custom_shaders_animation_duration_ms,
+            )
+        });
+        let render_target_view = if let Some(pp) = post_process {
+            &pp.intermediate_view
         } else {
             &surface_view
         };
@@ -185,7 +190,7 @@ impl crate::TermWindow {
         }
 
         // Run post-process shader chain if active
-        if let Some(pp) = &self.post_process {
+        if let Some(pp) = post_process {
             // Update the uniform buffer with current frame data
             let now = Instant::now();
             let time = self.created.elapsed().as_secs_f32();

@@ -49,6 +49,14 @@ pub struct CursorRenderState {
 }
 
 impl CursorRenderState {
+    pub fn animation_active(&self, time: f32, duration_ms: Option<u64>) -> bool {
+        duration_ms.map_or(true, |duration| {
+            self.current_cursor.is_some()
+                && duration > 0
+                && time - self.cursor_change_time < duration as f32 / 1000.0
+        })
+    }
+
     /// Update if the rect or color changed, shifting current to previous.
     pub fn update(&mut self, rect: Option<[f32; 4]>, color: [f32; 4], time: f32) {
         if rect != self.current_cursor || color != self.current_cursor_color {
@@ -81,5 +89,16 @@ mod tests {
         state.update(left, color, 4.0);
         assert_eq!(state.previous_cursor, right);
         assert_eq!(state.current_cursor, left);
+    }
+    #[test]
+    fn cursor_only_animation_stops_when_settled() {
+        let mut state = CursorRenderState::default();
+        assert!(!state.animation_active(0.0, Some(140)));
+        state.update(Some([10.0, 20.0, 8.0, 16.0]), [1.0; 4], 1.0);
+        assert!(state.animation_active(1.1, Some(140)));
+        assert!(!state.animation_active(1.2, Some(140)));
+        assert!(state.animation_active(10.0, None));
+        state.update(None, [1.0; 4], 2.0);
+        assert!(!state.animation_active(2.0, Some(140)));
     }
 }

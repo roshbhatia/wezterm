@@ -115,9 +115,13 @@ impl crate::TermWindow {
         metrics::histogram!("gui.paint.impl").record(self.last_frame_duration);
         metrics::histogram!("gui.paint.impl.rate").record(1.);
 
-        // When post-process shaders are active, schedule continuous redraws
-        // so that time-based shader effects animate smoothly
-        if self.post_process.is_some() {
+        // Cursor-only effects stop scheduling frames once their motion has settled.
+        if self.post_process.is_some()
+            && self.post_process_cursor.animation_active(
+                self.created.elapsed().as_secs_f32(),
+                self.config.custom_shaders_animation_duration_ms,
+            )
+        {
             let mut anim = self.has_animation.borrow_mut();
             let next = Instant::now() + Duration::from_millis(16);
             match *anim {

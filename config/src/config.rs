@@ -587,6 +587,11 @@ pub struct Config {
     #[dynamic(default)]
     pub custom_shaders: Vec<ShaderPathBuf>,
 
+    /// Limit shader animation to this many milliseconds after a cursor change.
+    /// None keeps continuous animation for effects such as CRT noise.
+    #[dynamic(default)]
+    pub custom_shaders_animation_duration_ms: Option<u64>,
+
     /// Only works on MacOS
     #[dynamic(default)]
     pub macos_window_background_blur: i64,
