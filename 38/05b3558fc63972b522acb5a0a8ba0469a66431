@@ -1,0 +1,27 @@
+config/src/keyassignment.rs
+  s_6a59011b119c6f::t_4cdae22f9ba1aa 602
+docs/config/lua/TabInformation.md
+  s_6a59011b119c6f::t_10b77af78cb0cc 15-17
+docs/config/lua/config/floating_pane_content_padding.md
+  s_6a59011b119c6f::t_d27c69a43ce96c 1-15
+docs/config/lua/keyassignment/ScaleFloatingPane.md
+  s_6a59011b119c6f::t_50b4e953045e98 1-17
+wezterm-gui/src/commands.rs
+  s_6a59011b119c6f::t_fc825a882882dc 1561-1568,2203-2204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3805b3558fc63972b522acb5a0a8ba0469a66431",
+  "prompts": {},
+  "sessions": {
+    "s_6a59011b119c6f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a32a-8f2d-7b71-a53f-f90208b124f1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
