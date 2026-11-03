@@ -1,0 +1,27 @@
+docs/config/lua/keyassignment/AdjustPaneSize.md
+  s_6a59011b119c6f::t_38450bbce53ada 8-13
+mux/src/tab.rs
+  s_6a59011b119c6f::t_590f2636e9e87c 1653,2800-2811,3136-3168,3173,3178-3180
+  s_6a59011b119c6f::t_e67c958d758e95 1650-1652
+  s_6a59011b119c6f::t_168fb79c2e9793 1654-1656
+  s_6a59011b119c6f::t_1b67b9984403ff 3169-3172
+  s_6a59011b119c6f::t_5ad0a489201ec9 3174-3177
+  s_6a59011b119c6f::t_0fee35dc1ae170 3181-3183
+  s_6a59011b119c6f::t_5de5fe206e1d2e 599,1142,1380-1381,1383-1399,1635-1649,1657,2304-2314,3184-3185
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "76e2628969ba6655b27dd6bf8dd251a864fa50ef",
+  "prompts": {},
+  "sessions": {
+    "s_6a59011b119c6f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a32a-8f2d-7b71-a53f-f90208b124f1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
