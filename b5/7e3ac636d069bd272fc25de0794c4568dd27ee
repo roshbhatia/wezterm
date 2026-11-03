@@ -1,0 +1,21 @@
+.github/workflows/fork-build.yml
+  s_2df4c1d29412fe::t_663597842e3e03 36-39
+lua-api-crates/mux/src/pane.rs
+  s_2df4c1d29412fe::t_d1a44f492eedce 152-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b57e3ac636d069bd272fc25de0794c4568dd27ee",
+  "prompts": {},
+  "sessions": {
+    "s_2df4c1d29412fe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a223-7da2-7e93-a06a-44201e93b6bc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
