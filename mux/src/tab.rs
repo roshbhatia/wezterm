@@ -592,11 +592,11 @@ impl Tab {
                 pane.is_active = false;
             }
         }
-        let size = inner.compute_floating_pane_size(inner.size);
         let cell_width = (inner.size.pixel_width / inner.size.cols).max(1);
         let cell_height = (inner.size.pixel_height / inner.size.rows).max(1);
         let count = panes.len();
         for (index, pane) in inner.floating_panes.iter().enumerate() {
+            let size = inner.floating_pane_size(pane);
             panes.push(PositionedPane {
                 index: count + index,
                 is_active: inner.floating_pane_is_visible() && index == inner.active_floating_pane,
@@ -1139,7 +1139,7 @@ impl TabInner {
         if self.floating_pane_visible && self.active_floating_pane < self.floating_panes.len() {
             let floating_pane = &self.floating_panes[self.active_floating_pane];
             let root_size = self.size;
-            let size = self.compute_floating_pane_size(self.size);
+            let size = self.floating_pane_size(floating_pane);
 
             let cell_height = (root_size.pixel_height / root_size.rows).max(1);
             let cell_width = (root_size.pixel_width / root_size.cols).max(1);
@@ -1377,9 +1377,26 @@ impl TabInner {
             return;
         }
 
-        let floating_pane_size = self.compute_floating_pane_size(size);
+        let prior_default = self.compute_floating_pane_size(self.size);
+        let next_default = self.compute_floating_pane_size(size);
         for floating_pane in &self.floating_panes {
-            floating_pane.resize(floating_pane_size).ok();
+            let current = self.floating_pane_size(floating_pane);
+            let next = if current.cols == prior_default.cols && current.rows == prior_default.rows {
+                next_default
+            } else {
+                let cols = (current.cols * size.cols / self.size.cols.max(1))
+                    .clamp(1, size.cols.saturating_sub(2).max(1));
+                let rows = (current.rows * size.rows / self.size.rows.max(1))
+                    .clamp(1, size.rows.saturating_sub(2).max(1));
+                TerminalSize {
+                    cols,
+                    rows,
+                    pixel_width: cols * (size.pixel_width / size.cols).max(1),
+                    pixel_height: rows * (size.pixel_height / size.rows).max(1),
+                    dpi: size.dpi,
+                }
+            };
+            floating_pane.resize(next).ok();
         }
 
         if let Some(zoomed) = &self.zoomed {
@@ -1615,6 +1632,29 @@ impl TabInner {
     }
 
     fn adjust_pane_size(&mut self, direction: PaneDirection, amount: usize) {
+        if self.is_floating_pane_active() {
+            if let Some(pane) = self.floating_panes.get(self.active_floating_pane) {
+                let mut size = self.floating_pane_size(pane);
+                match direction {
+                    PaneDirection::Left => size.cols = size.cols.saturating_sub(amount).max(1),
+                    PaneDirection::Right => size.cols = size.cols.saturating_add(amount),
+                    PaneDirection::Up => size.rows = size.rows.saturating_sub(amount).max(1),
+                    PaneDirection::Down => size.rows = size.rows.saturating_add(amount),
+                    _ => return,
+                }
+                size.cols = size.cols.min(self.size.cols.saturating_sub(2).max(1));
+                size.rows = size.rows.min(self.size.rows.saturating_sub(2).max(1));
+                size.pixel_width =
+                    size.cols * (self.size.pixel_width / self.size.cols.max(1)).max(1);
+                size.pixel_height =
+                    size.rows * (self.size.pixel_height / self.size.rows.max(1)).max(1);
+                if let Err(err) = pane.resize(size) {
+                    log::error!("resizing floating pane: {err:#}");
+                }
+                Mux::try_get().map(|mux| mux.notify(MuxNotification::TabResized(self.id)));
+            }
+            return;
+        }
         if self.zoomed.is_some() {
             return;
         }
@@ -2261,6 +2301,17 @@ impl TabInner {
         Ok(Arc::clone(&result))
     }
 
+    fn floating_pane_size(&self, pane: &Arc<dyn Pane>) -> TerminalSize {
+        let dims = pane.get_dimensions();
+        TerminalSize {
+            cols: dims.cols,
+            rows: dims.viewport_rows,
+            pixel_width: dims.pixel_width,
+            pixel_height: dims.pixel_height,
+            dpi: dims.dpi,
+        }
+    }
+
     fn compute_floating_pane_size2(&self) -> TerminalSize {
         self.compute_floating_pane_size(self.size)
     }
@@ -2746,7 +2797,18 @@ mod test {
         }
 
         fn get_dimensions(&self) -> RenderableDimensions {
-            unimplemented!();
+            let size = self.size.lock();
+            RenderableDimensions {
+                cols: size.cols,
+                viewport_rows: size.rows,
+                scrollback_rows: size.rows,
+                physical_top: 0,
+                scrollback_top: 0,
+                dpi: size.dpi,
+                pixel_width: size.pixel_width,
+                pixel_height: size.pixel_height,
+                reverse_video: false,
+            }
         }
 
         fn get_title(&self) -> String {
@@ -3069,6 +3131,56 @@ mod test {
         assert_eq!(tab.get_active_pane().unwrap().pane_id(), 3);
         assert_eq!(tab.iter_panes()[0].width, size.cols);
         assert_eq!(tab.iter_panes()[0].height, size.rows);
+    }
+
+    #[test]
+    fn floating_pane_resize_preserves_underlay_and_hidden_size() {
+        Mux::set_mux(&Arc::new(Mux::new(None)));
+        let size = TerminalSize {
+            rows: 40,
+            cols: 100,
+            pixel_width: 1000,
+            pixel_height: 800,
+            dpi: 96,
+        };
+        let tab = Tab::new(&size);
+        tab.assign_pane(&FakePane::new(1, size));
+        let initial = tab.compute_floating_pane_size();
+        tab.add_floating_pane(initial, FakePane::new(2, initial))
+            .unwrap();
+        tab.adjust_pane_size(PaneDirection::Right, 3);
+        tab.adjust_pane_size(PaneDirection::Down, 3);
+        let resized = tab.get_active_floating_pane().unwrap();
+        assert_eq!(
+            (resized.width, resized.height),
+            (initial.cols + 3, initial.rows + 3)
+        );
+        assert_eq!(
+            (resized.pixel_width, resized.pixel_height),
+            ((initial.cols + 3) * 10, (initial.rows + 3) * 20)
+        );
+        assert_eq!(tab.iter_panes()[0].width, size.cols);
+        tab.set_floating_pane_visibility(false);
+        let hidden = tab.iter_panes_including_floating();
+        assert_eq!(
+            (hidden[1].width, hidden[1].height),
+            (resized.width, resized.height)
+        );
+        tab.set_floating_pane_visibility(true);
+        tab.resize(size);
+        let restored = tab.get_active_floating_pane().unwrap();
+        assert_eq!(
+            (restored.width, restored.height),
+            (resized.width, resized.height)
+        );
+        tab.adjust_pane_size(PaneDirection::Left, usize::MAX);
+        tab.adjust_pane_size(PaneDirection::Up, usize::MAX);
+        let minimum = tab.get_active_floating_pane().unwrap();
+        assert_eq!((minimum.width, minimum.height), (1, 1));
+        tab.adjust_pane_size(PaneDirection::Right, usize::MAX);
+        tab.adjust_pane_size(PaneDirection::Down, usize::MAX);
+        let maximum = tab.get_active_floating_pane().unwrap();
+        assert_eq!((maximum.width, maximum.height), (98, 38));
     }
 
     #[test]
