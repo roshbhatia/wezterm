@@ -330,6 +330,7 @@ struct MuxPaneInfo {
     pub is_active: bool,
     /// true if this pane is zoomed
     pub is_zoomed: bool,
+    pub is_floating: bool,
     /// The offset from the top left corner of the containing tab to the top
     /// left corner of this pane, in cells.
     pub left: usize,

@@ -196,10 +196,7 @@ impl crate::TermWindow {
             self.last_post_process_time = Some(now);
             self.post_process_frame = self.post_process_frame.wrapping_add(1);
 
-            let cursor_state = self
-                .get_active_pane_or_overlay()
-                .map(|pane| self.pane_state(pane.pane_id()).cursor_render_state.clone())
-                .unwrap_or_default();
+            let cursor_state = self.post_process_cursor.clone();
 
             let uniform = PostProcessUniform {
                 resolution: [

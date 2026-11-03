@@ -33,4 +33,4 @@ rejected without changing records. Programs can query support with
 
 The protocol does not trigger desktop notifications or execute commands.
 Display `title` and `msg` as plain text if adding them to a status bar.
-Mux clients and servers must both use this fork's codec version 47.
+Mux clients and servers must both use this fork's codec version 48.

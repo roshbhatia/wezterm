@@ -34,7 +34,7 @@ impl PrevCursorPos {
     }
 }
 
-/// Per-pane cursor render state for the post-process shader uniforms.
+/// Active window cursor history for the post-process shader uniforms.
 #[derive(Clone, Debug, Default)]
 pub struct CursorRenderState {
     /// Cursor rect `{x, y, w, h}` in full-window pixel coords, or `None` if
@@ -58,5 +58,28 @@ impl CursorRenderState {
             self.current_cursor_color = color;
             self.cursor_change_time = time;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::CursorRenderState;
+
+    #[test]
+    fn active_cursor_moves_between_panes() {
+        let mut state = CursorRenderState::default();
+        let left = Some([10.0, 20.0, 8.0, 16.0]);
+        let right = Some([500.0, 200.0, 8.0, 16.0]);
+        let color = [1.0; 4];
+        state.update(left, color, 1.0);
+        state.update(right, color, 2.0);
+        assert_eq!(state.previous_cursor, left);
+        assert_eq!(state.current_cursor, right);
+        assert_eq!(state.cursor_change_time, 2.0);
+        state.update(right, color, 3.0);
+        assert_eq!(state.cursor_change_time, 2.0);
+        state.update(left, color, 4.0);
+        assert_eq!(state.previous_cursor, right);
+        assert_eq!(state.current_cursor, left);
     }
 }
