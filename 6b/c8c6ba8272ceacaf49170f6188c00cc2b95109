@@ -1,0 +1,21 @@
+codec/src/lib.rs
+  s_4739e15c332336::t_1defb7e92d82af 1179-1202
+wezterm-gui/src/termwindow/mod.rs
+  s_4739e15c332336::t_1868fc329caba2 1234-1237
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6bc8c6ba8272ceacaf49170f6188c00cc2b95109",
+  "prompts": {},
+  "sessions": {
+    "s_4739e15c332336": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1794d-ace0-74e2-8924-c9a64b78418e",
+        "model": "unknown"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
