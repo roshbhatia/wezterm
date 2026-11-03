@@ -233,6 +233,31 @@ impl UserData for TabInformation {
                 Ok(None)
             }
         });
+        fields.add_field_method_get("active_normal_pane", |_, this| {
+            Ok(Mux::get()
+                .get_tab(this.tab_id)
+                .and_then(|tab| tab.active_normal_pane())
+                .as_ref()
+                .map(TermWindow::pos_pane_to_pane_info))
+        });
+        fields.add_field_method_get("floating_pane_count", |_, this| {
+            Ok(Mux::get()
+                .get_tab(this.tab_id)
+                .map(|tab| tab.floating_pane_count())
+                .unwrap_or(0))
+        });
+        fields.add_field_method_get("floating_pane_visible", |_, this| {
+            Ok(this
+                .active_pane
+                .as_ref()
+                .map(|pane| {
+                    Mux::get()
+                        .get_tab(this.tab_id)
+                        .and_then(|tab| tab.get_floating_pane_by_pane_id(pane.pane_id))
+                        .is_some()
+                })
+                .unwrap_or(false))
+        });
         fields.add_field_method_get("panes", |_, this| {
             let mux = Mux::get();
             let mut panes = vec![];
@@ -3082,6 +3107,13 @@ impl TermWindow {
 
                 if self.tab_state(tab_id).overlay.is_none() {
                     tab.adjust_pane_size(*direction, *amount);
+                }
+            }
+            ScaleFloatingPane(percent) => {
+                if let Some(tab) = Mux::get().get_active_tab_for_window(self.mux_window_id) {
+                    if self.tab_state(tab.tab_id()).overlay.is_none() {
+                        tab.scale_floating_pane(*percent);
+                    }
                 }
             }
             ActivatePaneByIndex(index) => {

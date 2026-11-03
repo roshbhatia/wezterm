@@ -1558,6 +1558,14 @@ pub fn derive_command_from_key_assignment(action: &KeyAssignment) -> Option<Comm
             menubar: &[],
             icon: Some("cod_split_vertical"),
         },
+        ScaleFloatingPane(percent) => CommandDef {
+            brief: format!("{} floating pane", if *percent > 0 { "Grow" } else { "Shrink" }).into(),
+            doc: "Scales both floating pane dimensions proportionally".into(),
+            keys: vec![],
+            args: &[ArgType::ActivePane],
+            menubar: &[],
+            icon: None,
+        },
         AdjustPaneSize(PaneDirection::Left, amount) => CommandDef {
             brief: format!("Resize Pane {amount} cell(s) to the Left").into(),
             doc: "Adjusts the closest split divider to the left".into(),
@@ -2192,6 +2200,8 @@ fn compute_default_actions() -> Vec<KeyAssignment> {
         ActivateWindowRelative(1),
         MoveTabRelative(-1),
         MoveTabRelative(1),
+        ScaleFloatingPane(-5),
+        ScaleFloatingPane(5),
         AdjustPaneSize(PaneDirection::Left, 1),
         AdjustPaneSize(PaneDirection::Right, 1),
         AdjustPaneSize(PaneDirection::Up, 1),

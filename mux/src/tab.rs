@@ -695,6 +695,22 @@ impl Tab {
         self.inner.lock().adjust_pane_size(direction, amount)
     }
 
+    pub fn scale_floating_pane(&self, percent: i8) {
+        self.inner.lock().scale_floating_pane(percent)
+    }
+
+    pub fn active_normal_pane(&self) -> Option<PositionedPane> {
+        self.inner
+            .lock()
+            .iter_panes_ignoring_zoom()
+            .into_iter()
+            .find(|p| p.is_active)
+    }
+
+    pub fn floating_pane_count(&self) -> usize {
+        self.inner.lock().floating_panes.len()
+    }
+
     /// Activate an adjacent pane in the specified direction.
     /// In cases where there are multiple adjacent panes in the
     /// intended direction, we take the pane that has the largest
@@ -1631,6 +1647,41 @@ impl TabInner {
         Mux::try_get().map(|mux| mux.notify(MuxNotification::TabResized(self.id)));
     }
 
+    fn resize_floating_pane(&self, pane: &Arc<dyn Pane>, mut size: TerminalSize) {
+        size.cols = size.cols.min(self.size.cols.saturating_sub(2).max(1));
+        size.rows = size.rows.min(self.size.rows.saturating_sub(2).max(1));
+        size.pixel_width = size.cols * (self.size.pixel_width / self.size.cols.max(1)).max(1);
+        size.pixel_height = size.rows * (self.size.pixel_height / self.size.rows.max(1)).max(1);
+        if let Err(err) = pane.resize(size) {
+            log::error!("resizing floating pane: {err:#}");
+            return;
+        }
+        Mux::try_get().map(|mux| mux.notify(MuxNotification::TabResized(self.id)));
+    }
+
+    fn scale_floating_pane(&mut self, percent: i8) {
+        if percent == 0 || !self.is_floating_pane_active() {
+            return;
+        }
+        if let Some(pane) = self.floating_panes.get(self.active_floating_pane) {
+            let mut size = self.floating_pane_size(pane);
+            let min_axis = size.cols.min(size.rows).max(1) as f64;
+            let step = (f64::from(percent).abs() / 100.0).max(1.0 / min_axis);
+            let requested = 1.0 + step * f64::from(percent).signum();
+            let minimum = (1.0 / size.cols as f64).max(1.0 / size.rows as f64);
+            let maximum = (self.size.cols.saturating_sub(2).max(1) as f64 / size.cols as f64)
+                .min(self.size.rows.saturating_sub(2).max(1) as f64 / size.rows as f64);
+            let factor = requested.clamp(minimum, maximum.max(minimum));
+            let cols = (size.cols as f64 * factor).round().max(1.0) as usize;
+            let rows = (size.rows as f64 * factor).round().max(1.0) as usize;
+            if (cols, rows) != (size.cols, size.rows) {
+                size.cols = cols;
+                size.rows = rows;
+                self.resize_floating_pane(pane, size);
+            }
+        }
+    }
+
     fn adjust_pane_size(&mut self, direction: PaneDirection, amount: usize) {
         if self.is_floating_pane_active() {
             if let Some(pane) = self.floating_panes.get(self.active_floating_pane) {
@@ -1642,16 +1693,7 @@ impl TabInner {
                     PaneDirection::Down => size.rows = size.rows.saturating_add(amount),
                     _ => return,
                 }
-                size.cols = size.cols.min(self.size.cols.saturating_sub(2).max(1));
-                size.rows = size.rows.min(self.size.rows.saturating_sub(2).max(1));
-                size.pixel_width =
-                    size.cols * (self.size.pixel_width / self.size.cols.max(1)).max(1);
-                size.pixel_height =
-                    size.rows * (self.size.pixel_height / self.size.rows.max(1)).max(1);
-                if let Err(err) = pane.resize(size) {
-                    log::error!("resizing floating pane: {err:#}");
-                }
-                Mux::try_get().map(|mux| mux.notify(MuxNotification::TabResized(self.id)));
+                self.resize_floating_pane(pane, size);
             }
             return;
         }
@@ -2730,6 +2772,7 @@ mod test {
         size: Mutex<TerminalSize>,
         can_close: bool,
         focus: Mutex<Vec<bool>>,
+        resize_count: Mutex<usize>,
     }
 
     impl FakePane {
@@ -2739,6 +2782,7 @@ mod test {
                 size: Mutex::new(size),
                 can_close: true,
                 focus: Mutex::new(vec![]),
+                resize_count: Mutex::new(0),
             })
         }
     }
@@ -2824,6 +2868,7 @@ mod test {
             unimplemented!()
         }
         fn resize(&self, size: TerminalSize) -> anyhow::Result<()> {
+            *self.resize_count.lock() += 1;
             *self.size.lock() = size;
             Ok(())
         }
@@ -3107,6 +3152,7 @@ mod test {
             size: Mutex::new(size),
             can_close: false,
             focus: Mutex::new(vec![]),
+            resize_count: Mutex::new(0),
         });
         let pane: Arc<dyn Pane> = floating.clone();
         tab.add_floating_pane(size, pane).unwrap();
@@ -3181,6 +3227,71 @@ mod test {
         tab.adjust_pane_size(PaneDirection::Down, usize::MAX);
         let maximum = tab.get_active_floating_pane().unwrap();
         assert_eq!((maximum.width, maximum.height), (98, 38));
+    }
+
+    #[test]
+    fn floating_pane_scales_both_axes_once_and_keeps_owner_identity() {
+        Mux::set_mux(&Arc::new(Mux::new(None)));
+        let size = TerminalSize {
+            rows: 40,
+            cols: 100,
+            pixel_width: 1000,
+            pixel_height: 800,
+            dpi: 96,
+        };
+        let tab = Tab::new(&size);
+        tab.assign_pane(&FakePane::new(1, size));
+        let initial = TerminalSize {
+            rows: 24,
+            cols: 60,
+            pixel_width: 600,
+            pixel_height: 480,
+            dpi: 96,
+        };
+        let floating = Arc::new(FakePane {
+            id: 2,
+            size: Mutex::new(initial),
+            can_close: true,
+            focus: Mutex::new(vec![]),
+            resize_count: Mutex::new(0),
+        });
+        tab.add_floating_pane(initial, floating.clone()).unwrap();
+        let before = *floating.resize_count.lock();
+        tab.scale_floating_pane(5);
+        assert_eq!(*floating.resize_count.lock(), before + 1);
+        let grown = tab.get_active_floating_pane().unwrap();
+        assert_eq!((grown.width, grown.height), (63, 25));
+        assert_eq!((grown.pixel_width, grown.pixel_height), (630, 500));
+        assert_eq!(tab.active_normal_pane().unwrap().pane.pane_id(), 1);
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 2);
+        assert_eq!(tab.floating_pane_count(), 1);
+        tab.scale_floating_pane(-5);
+        let shrunk = tab.get_active_floating_pane().unwrap();
+        assert_eq!((shrunk.width, shrunk.height), (60, 24));
+        tab.scale_floating_pane(127);
+        let maximum = tab.get_active_floating_pane().unwrap();
+        assert_eq!((maximum.width, maximum.height), (95, 38));
+        let before = *floating.resize_count.lock();
+        tab.scale_floating_pane(5);
+        assert_eq!(*floating.resize_count.lock(), before);
+        tab.scale_floating_pane(-100);
+        let minimum = tab.get_active_floating_pane().unwrap();
+        assert_eq!((minimum.width, minimum.height), (3, 1));
+        tab.scale_floating_pane(-5);
+        assert_eq!(tab.get_active_floating_pane().unwrap().width, 3);
+        tab.scale_floating_pane(5);
+        let recovered = tab.get_active_floating_pane().unwrap();
+        assert_eq!((recovered.width, recovered.height), (6, 2));
+        tab.set_floating_pane_visibility(false);
+        let before = *floating.resize_count.lock();
+        tab.scale_floating_pane(5);
+        assert_eq!(*floating.resize_count.lock(), before);
+        assert_eq!(tab.floating_pane_count(), 1);
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 1);
+        assert_eq!(
+            (tab.iter_panes()[0].width, tab.iter_panes()[0].height),
+            (100, 40)
+        );
     }
 
     #[test]
