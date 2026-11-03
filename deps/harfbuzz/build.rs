@@ -15,7 +15,6 @@ fn harfbuzz() {
     cfg.cpp(true);
     cfg.flag_if_supported("-fno-rtti");
     cfg.flag_if_supported("-fno-exceptions");
-    cfg.flag_if_supported("-fno-threadsafe-statics");
     cfg.flag_if_supported("-std=c++11");
     cfg.flag_if_supported("-fno-stack-check");
     cfg.flag_if_supported("-Wno-format-overflow");
@@ -27,9 +26,10 @@ fn harfbuzz() {
     let target = env::var("TARGET").unwrap();
 
     cfg.file("harfbuzz/src/harfbuzz.cc");
-    cfg.define("HB_NO_MT", None);
 
+    // Font shaping can initialize HarfBuzz's shared font-function tables concurrently.
     if !target.contains("windows") {
+        cfg.define("HAVE_PTHREAD", Some("1"));
         cfg.define("HAVE_UNISTD_H", None);
         cfg.define("HAVE_SYS_MMAN_H", None);
     }
