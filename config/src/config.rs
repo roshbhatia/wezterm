@@ -146,6 +146,9 @@ pub struct Config {
     #[dynamic(default)]
     pub floating_pane_border: FloatingPaneBorderConfig,
 
+    #[dynamic(default = "default_floating_pane_content_padding")]
+    pub floating_pane_content_padding: WindowPadding,
+
     /// Font to use for CharSelect
     #[dynamic(default)]
     pub char_select_font: Option<TextStyle>,
@@ -1668,6 +1671,15 @@ fn default_pane_select_font_size() -> f64 {
 fn default_integrated_title_buttons() -> Vec<IntegratedTitleButton> {
     use IntegratedTitleButton::*;
     vec![Hide, Maximize, Close]
+}
+
+fn default_floating_pane_content_padding() -> WindowPadding {
+    WindowPadding {
+        left: Dimension::Pixels(6.0),
+        right: Dimension::Pixels(6.0),
+        top: Dimension::Pixels(6.0),
+        bottom: Dimension::Pixels(6.0),
+    }
 }
 
 fn default_floating_pane_padding() -> WindowPadding {

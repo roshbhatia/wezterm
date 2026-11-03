@@ -128,6 +128,30 @@ impl crate::TermWindow {
         let cell_width = self.render_metrics.cell_size.width as f32;
         let cell_height = self.render_metrics.cell_size.height as f32;
 
+        if pos.is_floating {
+            let horizontal = DimensionContext {
+                dpi: self.dimensions.dpi as f32,
+                pixel_max: pos.width as f32 * cell_width,
+                pixel_cell: cell_width,
+            };
+            let vertical = DimensionContext {
+                dpi: self.dimensions.dpi as f32,
+                pixel_max: pos.height as f32 * cell_height,
+                pixel_cell: cell_height,
+            };
+            let padding = &self.config.floating_pane_content_padding;
+            let left = padding.left.evaluate_as_pixels(horizontal) as f32;
+            let right = padding.right.evaluate_as_pixels(horizontal) as f32;
+            let top = padding.top.evaluate_as_pixels(vertical) as f32;
+            let bottom = padding.bottom.evaluate_as_pixels(vertical) as f32;
+            return euclid::rect(
+                padding_left + border.left.get() as f32 + pos.left as f32 * cell_width - left,
+                top_pixel_y + pos.top as f32 * cell_height - top,
+                pos.width as f32 * cell_width + left + right,
+                pos.height as f32 * cell_height + top + bottom,
+            );
+        }
+
         let (x, width_delta) = if pos.left == 0 {
             (
                 0.,
