@@ -1,0 +1,53 @@
+docs/config/lua/keyassignment/ToggleFloatingPane.md
+  s_2df4c1d29412fe::t_d9c146a991a0e4 1-34
+docs/config/lua/pane/get_program_status.md
+  s_2df4c1d29412fe::t_b66a47900803cf 36
+lua-api-crates/mux/src/lib.rs
+  s_2df4c1d29412fe::t_a9bfba02b8bb27 333
+lua-api-crates/mux/src/tab.rs
+  s_2df4c1d29412fe::t_7bc16c2d1251c2 58,88,93
+wezterm-client/src/client.rs
+  s_2df4c1d29412fe::t_d2332f87ba0f79 6,300-346,1392-1412
+wezterm-client/src/domain.rs
+  s_2df4c1d29412fe::t_4d81376f5369bd 5,11,29,250,359-390,528,532,536-554,594,599,816-869,1038-1085
+wezterm-gui/src/commands.rs
+  s_2df4c1d29412fe::t_fc626541d6749c 904-914,1462-1473,1530-1560,1655-1662,2093-2098,2204
+wezterm-gui/src/frontend.rs
+  s_2df4c1d29412fe::t_5f0db79ad87345 97-98
+wezterm-gui/src/spawn.rs
+  s_2df4c1d29412fe::t_3f14f309ac7aa4 18,126-145
+wezterm-gui/src/termwindow/mod.rs
+  s_2df4c1d29412fe::t_3af163d19ecefd 241,267,286,475,705,1341-1342,1470-1475,1559-1560,2712-2720,2796-2799,3093-3096,3125-3142,3311-3316,3321-3342,3596-3605,3628,3654-3662,3704,3734-3771
+wezterm-gui/src/termwindow/mouseevent.rs
+  s_2df4c1d29412fe::t_4ec72ef7d72ad6 310-329,344,687-715
+wezterm-gui/src/termwindow/paneselect.rs
+  s_2df4c1d29412fe::t_47ede9ff6fc7d6 216-226
+wezterm-gui/src/termwindow/prevcursor.rs
+  s_2df4c1d29412fe::t_07212847e09ecb 37,63-85
+wezterm-gui/src/termwindow/render/borders.rs
+  s_2df4c1d29412fe::t_9971f03a487c58 4-6,83-255,258,260,269,278,287,295-316,321-346
+wezterm-gui/src/termwindow/render/draw.rs
+  s_2df4c1d29412fe::t_7c69f7c7ca19d1 199
+wezterm-gui/src/termwindow/render/paint.rs
+  s_2df4c1d29412fe::t_5b8253e1a38b11 199-203,270,272-278,284-291
+wezterm-gui/src/termwindow/render/pane.rs
+  s_2df4c1d29412fe::t_435a8c45cc0595 108-109,125,128-134,211-232,239,242-244,246,258,265,272,283
+wezterm/src/cli/list.rs
+  s_2df4c1d29412fe::t_10bb4139955ae7 3,25,45-59,157,176,217
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "70159c948601b74e7995bfcffdeafef23826eda6",
+  "prompts": {},
+  "sessions": {
+    "s_2df4c1d29412fe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a223-7da2-7e93-a06a-44201e93b6bc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
