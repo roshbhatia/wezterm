@@ -33,8 +33,10 @@ jobs:
         with:
           name: roshbhatia
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-      - name: Build and test the Nix package
-        run: nix build ./nix --print-build-logs
+      - name: Build and test the exact source consumed by downstream flakes
+        env:
+          NIX_CONFIG: access-tokens = github.com=${{ github.token }}
+        run: nix build "github:$GITHUB_REPOSITORY/$GITHUB_SHA?dir=nix" --print-build-logs
       - name: Verify packaged binaries and publish the closure
         run: |
           result/bin/wezterm --version
