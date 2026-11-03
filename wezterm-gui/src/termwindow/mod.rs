@@ -1231,8 +1231,10 @@ impl TermWindow {
                     alert: Alert::ProgramStatusChanged(_),
                     pane_id,
                 } => {
-                    self.update_title();
-                    self.emit_window_event("program-status-changed", Some(pane_id));
+                    if self.window_contains_pane(pane_id) {
+                        self.update_title();
+                        self.emit_window_event("program-status-changed", Some(pane_id));
+                    }
                 }
                 MuxNotification::WindowTitleChanged { .. }
                 | MuxNotification::Alert {

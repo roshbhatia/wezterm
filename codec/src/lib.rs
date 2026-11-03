@@ -1177,6 +1177,30 @@ mod test {
     }
 
     #[test]
+    fn program_status_alert_roundtrips_through_mux_codec() {
+        let pdu = Pdu::NotifyAlert(NotifyAlert {
+            pane_id: 42,
+            alert: wezterm_term::Alert::ProgramStatusChanged(vec![
+                wezterm_term::ProgramStatusRecord {
+                    id: "build/test".to_owned(),
+                    state: wezterm_term::ProgramStatusState::Blocked,
+                    kind: Some("permission".to_owned()),
+                    progress: Some(42),
+                    app: Some("cargo".to_owned()),
+                    title: Some("Tests".to_owned()),
+                    msg: Some("Approve?".to_owned()),
+                },
+            ]),
+        });
+        let mut encoded = Vec::new();
+        pdu.encode(&mut encoded, 7).unwrap();
+        assert_eq!(
+            Pdu::decode(encoded.as_slice()).unwrap(),
+            DecodedPdu { serial: 7, pdu }
+        );
+    }
+
+    #[test]
     fn test_pdu_ping() {
         let mut encoded = Vec::new();
         Pdu::Ping(Ping {}).encode(&mut encoded, 0x40).unwrap();
