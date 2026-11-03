@@ -48,4 +48,3 @@ jobs:
         with:
           name: nix-${{ matrix.system }}
           path: nix-${{ matrix.system }}.json
-
