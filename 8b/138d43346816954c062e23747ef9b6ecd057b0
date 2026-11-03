@@ -1,0 +1,31 @@
+.github/workflows/fork-build.yml
+  s_2df4c1d29412fe::t_301b7ec25db8f6 45
+assets/shaders/cursor-trail.wgsl
+  s_2df4c1d29412fe::t_45153540dd3aec 1-33
+config/src/config.rs
+  s_2df4c1d29412fe::t_7620e6c435ebec 590-594
+docs/config/lua/config/custom_shaders.md
+  s_2df4c1d29412fe::t_461b7a6398e323 100-107
+nix/flake.nix
+  s_2df4c1d29412fe::t_25238a23e51352 179-180,225-226
+wezterm-gui/src/termwindow/render/paint.rs
+  s_2df4c1d29412fe::t_ac0d139318386b 118-124
+wezterm-gui/src/termwindow/webgpu.rs
+  s_2df4c1d29412fe::t_534424ee44568b 1881,1883,2007-2013,2016,2108,2143-2172,2194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8b138d43346816954c062e23747ef9b6ecd057b0",
+  "prompts": {},
+  "sessions": {
+    "s_2df4c1d29412fe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a223-7da2-7e93-a06a-44201e93b6bc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
