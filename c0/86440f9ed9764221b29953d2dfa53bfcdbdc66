@@ -1,0 +1,25 @@
+lua-api-crates/mux/src/tab.rs
+  s_2df4c1d29412fe::t_03f18d1da3b91a 67
+wezterm-gui/src/termwindow/render/pane.rs
+  s_2df4c1d29412fe::t_ce016d691691a9 80-83
+wezterm-mux-server-impl/src/sessionhandler.rs
+  s_2df4c1d29412fe::t_35ec16a0a1efd2 611
+wezterm/src/cli/spawn_command.rs
+  s_2df4c1d29412fe::t_5f26213d8f96f4 160,162,164-165,174-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c086440f9ed9764221b29953d2dfa53bfcdbdc66",
+  "prompts": {},
+  "sessions": {
+    "s_2df4c1d29412fe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a223-7da2-7e93-a06a-44201e93b6bc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
