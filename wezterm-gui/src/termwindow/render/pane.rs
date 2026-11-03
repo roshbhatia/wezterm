@@ -81,7 +81,9 @@ impl crate::TermWindow {
         if !pos.is_floating && self.get_floating_pane_to_render().is_some() {
             cursor.visibility = termwiz::surface::CursorVisibility::Hidden;
         }
-        if pos.is_active {
+        let is_active_cursor = pos.is_active
+            && self.get_active_pane_or_overlay().map(|p| p.pane_id()) == Some(pos.pane.pane_id());
+        if is_active_cursor {
             self.prev_cursor.update(&cursor);
         }
 
@@ -96,8 +98,13 @@ impl crate::TermWindow {
         let white_space = gl_state.util_sprites.white_space.texture_coords();
         let filled_box = gl_state.util_sprites.filled_box.texture_coords();
 
+        let background_opacity = if pos.is_floating {
+            1.0
+        } else {
+            config.window_background_opacity
+        };
         let window_is_transparent =
-            !self.window_background.is_empty() || config.window_background_opacity != 1.0;
+            !pos.is_floating && (!self.window_background.is_empty() || background_opacity != 1.0);
 
         let default_bg = palette
             .resolve_bg(ColorAttribute::Default)
@@ -109,8 +116,7 @@ impl crate::TermWindow {
             });
 
         // Follow the active cursor across pane focus changes in window coordinates.
-        if pos.is_active && self.get_active_pane_or_overlay().map(|p| p.pane_id()) == Some(pane_id)
-        {
+        if is_active_cursor {
             let cursor_bg = palette.cursor_bg.to_linear();
             let rect = if cursor.visibility == termwiz::surface::CursorVisibility::Visible {
                 let r = self.cursor_pixel_rect(pos);
@@ -136,7 +142,7 @@ impl crate::TermWindow {
             top_pixel_y,
         );
 
-        if self.window_background.is_empty() {
+        if pos.is_floating || self.window_background.is_empty() {
             // Per-pane, palette-specified background
 
             let mut quad = self
@@ -144,10 +150,7 @@ impl crate::TermWindow {
                     layers,
                     0,
                     background_rect,
-                    palette
-                        .background
-                        .to_linear()
-                        .mul_alpha(config.window_background_opacity),
+                    palette.background.to_linear().mul_alpha(background_opacity),
                 )
                 .context("filled_rectangle")?;
             quad.set_hsv(if pos.is_active {
