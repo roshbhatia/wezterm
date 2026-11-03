@@ -64,7 +64,7 @@ impl UserData for MuxTab {
         methods.add_method("get_pane_direction", |_, this, direction: Value| {
             let mux = get_mux()?;
             let tab = this.resolve(&mux)?;
-            let panes = tab.iter_panes_ignoring_zoom();
+            let panes = tab.iter_panes_including_floating();
 
             let dir: PaneDirection = from_lua(direction)?;
             let pane = tab

@@ -157,11 +157,12 @@ mod tests {
             vec!["--window-id", "0"],
             vec!["--workspace", "other"],
         ] {
-            let mut args = vec!["spawn", "--floating-pane"];
+            let mut args = vec!["cli", "spawn", "--floating-pane"];
             args.extend(target);
-            assert!(SpawnCommand::try_parse_from(args).is_err());
+            assert!(crate::cli::CliCommand::try_parse_from(args).is_err());
         }
-        let command = SpawnCommand::try_parse_from([
+        let command = crate::cli::CliCommand::try_parse_from([
+            "cli",
             "spawn",
             "--floating-pane",
             "--pane-id",
@@ -170,7 +171,12 @@ mod tests {
             "remote",
         ])
         .unwrap();
-        assert!(command.floating_pane);
-        assert_eq!(command.domain_name.as_deref(), Some("remote"));
+        match command.sub {
+            crate::cli::CliSubCommand::SpawnCommand(command) => {
+                assert!(command.floating_pane);
+                assert_eq!(command.domain_name.as_deref(), Some("remote"));
+            }
+            _ => panic!("expected spawn command"),
+        }
     }
 }

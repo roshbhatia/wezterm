@@ -608,7 +608,7 @@ impl SessionHandler {
                             let tab = mux
                                 .get_tab(tab_id)
                                 .ok_or_else(|| anyhow!("no such tab {}", tab_id))?;
-                            let panes = tab.iter_panes_ignoring_zoom();
+                            let panes = tab.iter_panes_including_floating();
                             let pane_id = tab
                                 .get_pane_direction(direction, true)
                                 .map(|pane_index| panes[pane_index].pane.pane_id());

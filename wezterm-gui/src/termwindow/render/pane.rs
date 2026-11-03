@@ -77,7 +77,10 @@ impl crate::TermWindow {
         let border = self.get_os_border();
         let top_pixel_y = top_bar_height + padding_top + border.top.get() as f32;
 
-        let cursor = pos.pane.get_cursor_position();
+        let mut cursor = pos.pane.get_cursor_position();
+        if !pos.is_floating && self.get_floating_pane_to_render().is_some() {
+            cursor.visibility = termwiz::surface::CursorVisibility::Hidden;
+        }
         if pos.is_active {
             self.prev_cursor.update(&cursor);
         }

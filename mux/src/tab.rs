@@ -708,7 +708,21 @@ impl Tab {
     /// intended direction, we take the pane that has the largest
     /// edge intersection.
     pub fn get_pane_direction(&self, direction: PaneDirection, ignore_zoom: bool) -> Option<usize> {
-        self.inner.lock().get_pane_direction(direction, ignore_zoom)
+        let mut inner = self.inner.lock();
+        if inner.is_floating_pane_active() {
+            let index = match direction {
+                PaneDirection::Left | PaneDirection::Prev => {
+                    (inner.active_floating_pane + inner.floating_panes.len() - 1)
+                        % inner.floating_panes.len()
+                }
+                PaneDirection::Right | PaneDirection::Next => {
+                    (inner.active_floating_pane + 1) % inner.floating_panes.len()
+                }
+                _ => return None,
+            };
+            return Some(inner.iter_panes_ignoring_zoom().len() + index);
+        }
+        inner.get_pane_direction(direction, ignore_zoom)
     }
 
     pub fn prune_dead_panes(&self) -> bool {
@@ -1683,6 +1697,7 @@ impl TabInner {
             };
 
             self.set_active_floating_pane(new_index, true);
+            return;
         }
 
         if let Some(panel_idx) = self.get_pane_direction(direction, false) {
@@ -1967,7 +1982,7 @@ impl TabInner {
             if floating_pane.is_dead() || f(0, floating_pane) {
                 dead_panes.push(Arc::clone(floating_pane));
                 floating_pane_indices_to_remove.push(i);
-                if (i == self.active_floating_pane) {
+                if i == self.active_floating_pane {
                     active_floating_pane_dead = true;
                 }
             }
@@ -3046,6 +3061,14 @@ mod test {
         assert!(!tab.can_close_without_prompting(CloseReason::Tab));
         tab.set_floating_pane_visibility(true);
         assert_eq!(*floating.focus.lock(), vec![true, false, true]);
+        tab.add_floating_pane(size, FakePane::new(3, size)).unwrap();
+        assert_eq!(tab.get_pane_direction(PaneDirection::Prev, true), Some(1));
+        tab.activate_pane_direction(PaneDirection::Prev);
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 2);
+        tab.activate_pane_direction(PaneDirection::Next);
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 3);
+        assert_eq!(tab.iter_panes()[0].width, size.cols);
+        assert_eq!(tab.iter_panes()[0].height, size.rows);
     }
 
     #[test]
