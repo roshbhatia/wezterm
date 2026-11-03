@@ -1,0 +1,19 @@
+deps/harfbuzz/build.rs
+  s_2df4c1d29412fe::t_f7f7b584fbd39d 30,32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c30697077cc0ab4229760a7d85774ff0478df05b",
+  "prompts": {},
+  "sessions": {
+    "s_2df4c1d29412fe": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a223-7da2-7e93-a06a-44201e93b6bc",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
