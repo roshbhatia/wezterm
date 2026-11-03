@@ -37,6 +37,7 @@ impl PduSender {
 
 #[derive(Default, Debug)]
 pub(crate) struct PerPane {
+    program_status: Vec<wezterm_term::ProgramStatusRecord>,
     cursor_position: StableCursorPosition,
     title: String,
     working_dir: Option<Url>,
@@ -55,7 +56,9 @@ impl PerPane {
         pane: &Arc<dyn Pane>,
         force_with_input_serial: Option<InputSerial>,
     ) -> Option<GetPaneRenderChangesResponse> {
-        let mut changed = false;
+        let program_status = pane.get_program_status();
+        let mut changed = self.program_status != program_status;
+        self.program_status = program_status.clone();
         let mouse_grabbed = pane.is_mouse_grabbed();
         if mouse_grabbed != self.mouse_grabbed {
             changed = true;
@@ -136,6 +139,7 @@ impl PerPane {
 
         let bonus_lines = bonus_lines.into();
         Some(GetPaneRenderChangesResponse {
+            program_status,
             pane_id: pane.pane_id(),
             mouse_grabbed,
             alt_screen_active,

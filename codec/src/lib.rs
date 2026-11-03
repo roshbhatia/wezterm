@@ -442,7 +442,7 @@ macro_rules! pdu {
 /// The overall version of the codec.
 /// This must be bumped when backwards incompatible changes
 /// are made to the types and protocol.
-pub const CODEC_VERSION: usize = 46;
+pub const CODEC_VERSION: usize = 47;
 
 // Defines the Pdu enum.
 // Each struct has an explicit identifying number.
@@ -913,6 +913,7 @@ pub struct LivenessResponse {
 
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct GetPaneRenderChangesResponse {
+    pub program_status: Vec<wezterm_term::ProgramStatusRecord>,
     pub pane_id: PaneId,
     pub mouse_grabbed: bool,
     pub alt_screen_active: bool,

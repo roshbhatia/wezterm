@@ -288,6 +288,7 @@ impl Pane for LocalPane {
                 };
 
                 if let Some(status) = status {
+                    self.terminal.lock().clear_transient_program_status();
                     let success = match status.success() {
                         true => true,
                         false => configuration()
@@ -460,6 +461,10 @@ impl Pane for LocalPane {
         }
 
         title
+    }
+
+    fn get_program_status(&self) -> Vec<wezterm_term::ProgramStatusRecord> {
+        self.terminal.lock().get_program_status()
     }
 
     fn get_progress(&self) -> Progress {

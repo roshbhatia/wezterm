@@ -26,6 +26,9 @@ use wezterm_surface::SequenceNo;
 pub mod config;
 pub use config::TerminalConfiguration;
 
+pub mod program_status;
+pub use program_status::{ProgramStatusRecord, ProgramStatusState};
+
 pub mod input;
 pub use crate::input::*;
 

@@ -71,6 +71,7 @@ pub enum Alert {
     OutputSinceFocusLost,
     /// A change to the progress bar state
     Progress(Progress),
+    ProgramStatusChanged(Vec<ProgramStatusRecord>),
 }
 
 pub trait AlertHandler: Send + Sync {

@@ -237,6 +237,9 @@ pub trait Pane: Downcast + Send + Sync {
     fn get_dimensions(&self) -> RenderableDimensions;
 
     fn get_title(&self) -> String;
+    fn get_program_status(&self) -> Vec<wezterm_term::ProgramStatusRecord> {
+        Vec::new()
+    }
     fn get_progress(&self) -> Progress {
         Progress::None
     }

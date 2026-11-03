@@ -373,6 +373,7 @@ pub struct TerminalState {
     sixel_scrolls_right: bool,
 
     user_vars: HashMap<String, String>,
+    program_status: crate::program_status::ProgramStatus,
 
     kitty_img: KittyImageState,
     seqno: SequenceNo,
@@ -582,6 +583,7 @@ impl TerminalState {
             writer,
             image_cache: lru::LruCache::new(NonZeroUsize::new(16).unwrap()),
             user_vars: HashMap::new(),
+            program_status: Default::default(),
             kitty_img: Default::default(),
             seqno,
             unicode_version,
@@ -654,6 +656,23 @@ impl TerminalState {
     /// if it is set, otherwise return the OSC 2 window title.
     pub fn get_title(&self) -> &str {
         self.icon_title.as_ref().unwrap_or(&self.title)
+    }
+
+    pub fn get_program_status(&self) -> Vec<ProgramStatusRecord> {
+        self.program_status.records()
+    }
+
+    pub fn clear_transient_program_status(&mut self) {
+        if self.program_status.clear_transient() {
+            self.program_status_did_change();
+        }
+    }
+
+    fn program_status_did_change(&mut self) {
+        let records = self.get_program_status();
+        if let Some(handler) = self.alert_handler.as_mut() {
+            handler.alert(Alert::ProgramStatusChanged(records));
+        }
     }
 
     pub fn get_progress(&self) -> Progress {

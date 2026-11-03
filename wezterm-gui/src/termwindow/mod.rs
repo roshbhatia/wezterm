@@ -1227,6 +1227,13 @@ impl TermWindow {
                 } => {
                     self.emit_user_var_event(pane_id, name, value);
                 }
+                MuxNotification::Alert {
+                    alert: Alert::ProgramStatusChanged(_),
+                    pane_id,
+                } => {
+                    self.update_title();
+                    self.emit_window_event("program-status-changed", Some(pane_id));
+                }
                 MuxNotification::WindowTitleChanged { .. }
                 | MuxNotification::Alert {
                     alert:
@@ -1486,6 +1493,7 @@ impl TermWindow {
                     | Alert::WindowTitleChanged(_)
                     | Alert::TabTitleChanged(_)
                     | Alert::IconTitleChanged(_)
+                    | Alert::ProgramStatusChanged(_)
                     | Alert::Progress(_)
                     | Alert::SetUserVar { .. }
                     | Alert::Bell,

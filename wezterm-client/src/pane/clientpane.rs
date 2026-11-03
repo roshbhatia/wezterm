@@ -50,6 +50,7 @@ pub struct ClientPane {
     config: Mutex<Option<Arc<dyn TerminalConfiguration>>>,
     unseen_output: Mutex<bool>,
     progress: Mutex<Progress>,
+    program_status: Mutex<Vec<wezterm_term::ProgramStatusRecord>>,
 }
 
 impl ClientPane {
@@ -133,12 +134,28 @@ impl ClientPane {
             user_vars: Mutex::new(HashMap::new()),
             config: Mutex::new(None),
             progress: Mutex::new(Progress::default()),
+            program_status: Mutex::new(Vec::new()),
         }
     }
 
     pub async fn process_unilateral(&self, pdu: Pdu) -> anyhow::Result<()> {
         match pdu {
             Pdu::GetPaneRenderChangesResponse(mut delta) => {
+                let changed = {
+                    let mut status = self.program_status.lock();
+                    if *status != delta.program_status {
+                        *status = delta.program_status.clone();
+                        true
+                    } else {
+                        false
+                    }
+                };
+                if changed {
+                    Mux::get().notify(MuxNotification::Alert {
+                        pane_id: self.local_pane_id,
+                        alert: Alert::ProgramStatusChanged(delta.program_status.clone()),
+                    });
+                }
                 *self.mouse_grabbed.lock() = delta.mouse_grabbed;
                 *self.alt_screen_active.lock() = delta.alt_screen_active;
 
@@ -194,6 +211,9 @@ impl ClientPane {
                             pane_id: self.local_pane_id,
                             alert: Alert::OutputSinceFocusLost,
                         });
+                    }
+                    Alert::ProgramStatusChanged(records) => {
+                        *self.program_status.lock() = records.clone();
                     }
                     Alert::Progress(progress) => {
                         *self.progress.lock() = progress.clone();
@@ -326,6 +346,10 @@ impl Pane for ClientPane {
         let renderable = self.renderable.lock();
         let inner = renderable.inner.borrow();
         inner.title.clone()
+    }
+
+    fn get_program_status(&self) -> Vec<wezterm_term::ProgramStatusRecord> {
+        self.program_status.lock().clone()
     }
 
     fn get_progress(&self) -> Progress {

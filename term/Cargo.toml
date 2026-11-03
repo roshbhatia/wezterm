@@ -15,6 +15,7 @@ use_serde = ["termwiz/use_serde", "wezterm-cell/use_serde", "wezterm-escape-pars
 
 [dependencies]
 anyhow.workspace = true
+base64 = { workspace = true, features = ["std"] }
 bitflags.workspace = true
 csscolorparser.workspace = true
 downcast-rs.workspace = true

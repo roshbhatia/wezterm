@@ -720,6 +720,9 @@ impl<'a> Performer<'a> {
                 self.suppress_initial_title_change = false;
                 self.accumulating_title.take();
                 self.progress = Progress::default();
+                if self.program_status.clear() {
+                    self.program_status_did_change();
+                }
 
                 self.screen.full_reset();
                 self.screen.activate_alt_screen(seqno);
@@ -772,6 +775,17 @@ impl<'a> Performer<'a> {
             }
             OperatingSystemCommand::SetHyperlink(link) => {
                 self.set_hyperlink(link);
+            }
+            OperatingSystemCommand::Unspecified(unspec)
+                if unspec.first().map(Vec::as_slice) == Some(b"7501") =>
+            {
+                let body = unspec[1..].join(&b';');
+                if body == b"?" {
+                    self.writer.write_all(b"\x1b]7501;?\x1b\\").ok();
+                    self.writer.flush().ok();
+                } else if self.program_status.apply(&body) {
+                    self.program_status_did_change();
+                }
             }
             OperatingSystemCommand::Unspecified(unspec) => {
                 if self.config.log_unknown_escape_sequences() {
@@ -870,12 +884,14 @@ impl<'a> Performer<'a> {
             OperatingSystemCommand::FinalTermSemanticPrompt(
                 FinalTermSemanticPrompt::FreshLineAndStartPrompt { .. },
             ) => {
+                self.clear_transient_program_status();
                 self.fresh_line();
                 self.pen.set_semantic_type(SemanticType::Prompt);
             }
             OperatingSystemCommand::FinalTermSemanticPrompt(
                 FinalTermSemanticPrompt::StartPrompt(_),
             ) => {
+                self.clear_transient_program_status();
                 self.pen.set_semantic_type(SemanticType::Prompt);
             }
             OperatingSystemCommand::FinalTermSemanticPrompt(
