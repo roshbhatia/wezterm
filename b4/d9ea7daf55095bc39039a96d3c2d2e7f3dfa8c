@@ -1,0 +1,35 @@
+config/src/keyassignment.rs
+  s_6a59011b119c6f::t_0a8e82995ea6ed 587
+docs/config/lua/keyassignment/ToggleGlobalFloatingPane.md
+  s_6a59011b119c6f::t_4c93fc25c39974 1-20
+mux/src/lib.rs
+  s_6a59011b119c6f::t_65bd74f978f0d3 124-125,469-470,846-848,864,1294-1402
+mux/src/tab.rs
+  s_4739e15c332336::t_923689c5597b49 1925-1933,3241-3318
+wezterm-gui/src/commands.rs
+  s_6a59011b119c6f::t_6ecfcef9104471 1663-1670,2223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b4d9ea7daf55095bc39039a96d3c2d2e7f3dfa8c",
+  "prompts": {},
+  "sessions": {
+    "s_4739e15c332336": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1794d-ace0-74e2-8924-c9a64b78418e",
+        "model": "gpt-6-luna"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    },
+    "s_6a59011b119c6f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a32a-8f2d-7b71-a53f-f90208b124f1",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
