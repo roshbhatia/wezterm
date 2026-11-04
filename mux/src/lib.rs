@@ -121,6 +121,8 @@ pub struct Mux {
     clients: RwLock<HashMap<ClientId, ClientInfo>>,
     identity: RwLock<Option<Arc<ClientId>>>,
     num_panes_by_workspace: RwLock<HashMap<String, usize>>,
+    global_floating_pane: RwLock<Option<PaneId>>,
+    global_floating_pane_spawning: AtomicBool,
     main_thread_id: std::thread::ThreadId,
     agent: Option<AgentProxy>,
 }
@@ -464,6 +466,8 @@ impl Mux {
             clients: RwLock::new(HashMap::new()),
             identity: RwLock::new(None),
             num_panes_by_workspace: RwLock::new(HashMap::new()),
+            global_floating_pane: RwLock::new(None),
+            global_floating_pane_spawning: AtomicBool::new(false),
             main_thread_id: std::thread::current().id(),
             agent,
         }
@@ -839,6 +843,9 @@ impl Mux {
 
     fn remove_pane_internal(&self, pane_id: PaneId) {
         log::debug!("removing pane {}", pane_id);
+        if self.global_floating_pane_id() == Some(pane_id) {
+            *self.global_floating_pane.write() = None;
+        }
         let mut changed = false;
         if let Some(pane) = self.panes.write().remove(&pane_id).clone() {
             log::debug!("killing pane {}", pane_id);
@@ -854,6 +861,7 @@ impl Mux {
 
     fn remove_tab_internal(&self, tab_id: TabId) -> Option<Arc<Tab>> {
         log::debug!("remove_tab_internal tab {}", tab_id);
+        self.detach_global_floating_pane_from_tab(tab_id);
 
         let tab = self.tabs.write().remove(&tab_id)?;
 
@@ -1281,6 +1289,115 @@ impl Mux {
 
         let term_config = current_pane.get_config();
         Ok((domain, tab_id, current_pane, term_config))
+    }
+
+    pub fn global_floating_pane_id(&self) -> Option<PaneId> {
+        *self.global_floating_pane.read()
+    }
+
+    pub fn detach_global_floating_pane_from_tab(&self, tab_id: TabId) {
+        let Some(pane_id) = self.global_floating_pane_id() else {
+            return;
+        };
+        let Some(tab) = self.get_tab(tab_id) else {
+            return;
+        };
+        let Some((index, _)) = tab.get_floating_pane_by_pane_id(pane_id) else {
+            return;
+        };
+        if tab.get_zoomed_pane().map(|pane| pane.pane_id()) == Some(pane_id) {
+            tab.set_zoomed(false);
+        }
+        if tab.get_active_pane().map(|pane| pane.pane_id()) == Some(pane_id) {
+            tab.set_floating_pane_visibility(false);
+        }
+        tab.remove_floating_pane(index)
+            .expect("validated floating pane index");
+        self.notify(MuxNotification::TabResized(tab_id));
+    }
+
+    fn toggle_existing_global_floating_pane(&self, tab_id: TabId) -> anyhow::Result<bool> {
+        let Some(pane_id) = self.global_floating_pane_id() else {
+            return Ok(false);
+        };
+        let Some(pane) = self.get_pane(pane_id).filter(|pane| !pane.is_dead()) else {
+            *self.global_floating_pane.write() = None;
+            return Ok(false);
+        };
+        let tab = self
+            .get_tab(tab_id)
+            .ok_or_else(|| anyhow!("invalid tab {tab_id}"))?;
+        let owner = self
+            .tabs
+            .read()
+            .values()
+            .find(|tab| tab.get_floating_pane_by_pane_id(pane_id).is_some())
+            .cloned();
+        let hide = owner.as_ref().map(|owner| owner.tab_id()) == Some(tab_id)
+            && tab.get_active_pane().map(|pane| pane.pane_id()) == Some(pane_id);
+        if let Some(owner) = owner {
+            self.detach_global_floating_pane_from_tab(owner.tab_id());
+        }
+        if hide {
+            return Ok(true);
+        }
+        if tab.get_zoomed_pane().is_some() {
+            tab.set_zoomed(false);
+        }
+        let root = tab.get_size();
+        let dims = pane.get_dimensions();
+        let cols = dims.cols.min(root.cols.saturating_sub(2).max(1));
+        let rows = dims.viewport_rows.min(root.rows.saturating_sub(2).max(1));
+        let size = TerminalSize {
+            cols,
+            rows,
+            pixel_width: cols * (root.pixel_width / root.cols.max(1)).max(1),
+            pixel_height: rows * (root.pixel_height / root.rows.max(1)).max(1),
+            dpi: root.dpi,
+        };
+        tab.add_floating_pane(size, pane)?;
+        self.notify(MuxNotification::TabResized(tab_id));
+        Ok(true)
+    }
+
+    pub async fn toggle_global_floating_pane(&self, tab_id: TabId) -> anyhow::Result<()> {
+        if self.toggle_existing_global_floating_pane(tab_id)? {
+            return Ok(());
+        }
+        if self
+            .global_floating_pane_spawning
+            .swap(true, Ordering::SeqCst)
+        {
+            return Ok(());
+        }
+        let result = async {
+            let tab = self
+                .get_tab(tab_id)
+                .ok_or_else(|| anyhow!("invalid tab {tab_id}"))?;
+            let domain = self
+                .get_domain_by_name("local")
+                .ok_or_else(|| anyhow!("local domain unavailable"))?;
+            let current = tab.get_active_pane();
+            let cwd = self.resolve_cwd(
+                None,
+                current.clone(),
+                domain.domain_id(),
+                CachePolicy::AllowStale,
+            );
+            let pane = domain
+                .spawn_pane(tab.compute_floating_pane_size(), None, cwd)
+                .await?;
+            if let Some(current) = current {
+                Self::apply_config_to_pane(pane.clone(), current.get_config());
+            }
+            *self.global_floating_pane.write() = Some(pane.pane_id());
+            self.toggle_existing_global_floating_pane(tab_id)?;
+            Ok(())
+        }
+        .await;
+        self.global_floating_pane_spawning
+            .store(false, Ordering::SeqCst);
+        result
     }
 
     pub async fn spawn_floating_pane(

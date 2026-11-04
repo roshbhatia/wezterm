@@ -1922,6 +1922,15 @@ impl TabInner {
             .is_empty();
 
         if self.iter_panes().iter().next().is_none() {
+            if let Some(global_id) = Mux::get().global_floating_pane_id() {
+                if let Some(index) = self
+                    .floating_panes
+                    .iter()
+                    .position(|pane| pane.pane_id() == global_id)
+                {
+                    self.remove_floating_pane(index).ok();
+                }
+            }
             let pane_ids: Vec<_> = self
                 .floating_panes
                 .iter()
@@ -3227,6 +3236,84 @@ mod test {
         tab.adjust_pane_size(PaneDirection::Down, usize::MAX);
         let maximum = tab.get_active_floating_pane().unwrap();
         assert_eq!((maximum.width, maximum.height), (98, 38));
+    }
+
+    #[test]
+    fn global_float_moves_without_replacing_local_panes_or_ending_its_process() {
+        let mux = Arc::new(Mux::new(None));
+        Mux::set_mux(&mux);
+        let size = TerminalSize {
+            cols: 100,
+            rows: 40,
+            pixel_width: 1000,
+            pixel_height: 800,
+            dpi: 96,
+        };
+        let float_size = TerminalSize {
+            cols: 60,
+            rows: 24,
+            pixel_width: 600,
+            pixel_height: 480,
+            dpi: 96,
+        };
+        let first = Arc::new(Tab::new(&size));
+        let second = Arc::new(Tab::new(&size));
+        let normal_first = FakePane::new(101, size);
+        let normal_second = FakePane::new(102, size);
+        let local_first = FakePane::new(103, float_size);
+        let local_second = FakePane::new(104, float_size);
+        let global = FakePane::new(105, float_size);
+        first.assign_pane(&normal_first);
+        second.assign_pane(&normal_second);
+        first.add_floating_pane(float_size, local_first).unwrap();
+        second.add_floating_pane(float_size, local_second).unwrap();
+        mux.add_tab_no_panes(&first);
+        mux.add_tab_no_panes(&second);
+        mux.add_pane(&normal_first).unwrap();
+        mux.add_pane(&normal_second).unwrap();
+        mux.add_pane(&global).unwrap();
+        *mux.global_floating_pane.write() = Some(global.pane_id());
+
+        assert!(mux
+            .toggle_existing_global_floating_pane(first.tab_id())
+            .unwrap());
+        assert_eq!(first.get_active_pane().unwrap().pane_id(), 105);
+        assert_eq!(first.floating_pane_count(), 2);
+        assert!(mux
+            .toggle_existing_global_floating_pane(second.tab_id())
+            .unwrap());
+        assert!(first.get_floating_pane_by_pane_id(105).is_none());
+        assert_eq!(first.floating_pane_count(), 1);
+        assert_eq!(first.get_active_pane().unwrap().pane_id(), 101);
+        assert_eq!(second.get_active_pane().unwrap().pane_id(), 105);
+
+        second.scale_floating_pane(5);
+        assert!(mux
+            .toggle_existing_global_floating_pane(second.tab_id())
+            .unwrap());
+        assert_eq!(second.floating_pane_count(), 1);
+        assert_eq!(second.get_active_pane().unwrap().pane_id(), 102);
+        assert!(mux.get_pane(105).is_some());
+        assert!(mux
+            .toggle_existing_global_floating_pane(second.tab_id())
+            .unwrap());
+        assert_eq!(global.get_dimensions().cols, 63);
+        assert_eq!(global.get_dimensions().viewport_rows, 25);
+        mux.remove_tab(second.tab_id());
+        assert!(mux.get_pane(105).is_some());
+        assert!(mux
+            .toggle_existing_global_floating_pane(first.tab_id())
+            .unwrap());
+        mux.detach_global_floating_pane_from_tab(first.tab_id());
+        first.toggle_float();
+        assert_eq!(first.get_active_pane().unwrap().pane_id(), 103);
+        assert_eq!(normal_first.get_dimensions().cols, 100);
+        assert_eq!(normal_second.get_dimensions().viewport_rows, 40);
+        mux.remove_pane(105);
+        assert!(mux.global_floating_pane_id().is_none());
+        assert!(!mux
+            .toggle_existing_global_floating_pane(first.tab_id())
+            .unwrap());
     }
 
     #[test]

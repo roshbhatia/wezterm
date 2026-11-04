@@ -1660,6 +1660,14 @@ pub fn derive_command_from_key_assignment(action: &KeyAssignment) -> Option<Comm
             menubar: &["Window"],
             icon: Some("md_fullscreen"),
         },
+        ToggleGlobalFloatingPane => CommandDef {
+            brief: "Toggle global floating pane".into(),
+            doc: "Show the singleton local shell in this tab, or hide it without ending its process".into(),
+            keys: vec![],
+            args: &[ArgType::ActiveWindow],
+            menubar: &["Window"],
+            icon: Some("cod_primitive_square"),
+        },
         ToggleFloatingPane => CommandDef {
             brief: "Toggle floating pane".into(),
             doc: "Toggles the visibility state for the current pane".into(),
@@ -2212,6 +2220,7 @@ fn compute_default_actions() -> Vec<KeyAssignment> {
         ActivatePaneDirection(PaneDirection::Down),
         TogglePaneZoomState,
         ToggleFloatingPane,
+        ToggleGlobalFloatingPane,
         ActivateLastTab,
         ShowLauncher,
         ShowTabNavigator,

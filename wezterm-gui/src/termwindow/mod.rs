@@ -3157,12 +3157,25 @@ impl TermWindow {
                 };
                 tab.toggle_zoom();
             }
+            ToggleGlobalFloatingPane => {
+                let mux = Mux::get();
+                if let Some(tab) = mux.get_active_tab_for_window(self.mux_window_id) {
+                    let tab_id = tab.tab_id();
+                    promise::spawn::spawn(async move {
+                        if let Err(err) = mux.toggle_global_floating_pane(tab_id).await {
+                            log::error!("toggle global floating pane: {err:#}");
+                        }
+                    })
+                    .detach();
+                }
+            }
             ToggleFloatingPane => {
                 let mux = Mux::get();
                 let tab = match mux.get_active_tab_for_window(self.mux_window_id) {
                     Some(tab) => tab,
                     None => return Ok(PerformAssignmentResult::Handled),
                 };
+                mux.detach_global_floating_pane_from_tab(tab.tab_id());
                 if !tab.has_floating_pane() {
                     self.spawn_command(
                         &SpawnCommand {
