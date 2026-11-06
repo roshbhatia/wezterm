@@ -1,0 +1,29 @@
+wezterm-mux-server-impl/src/sessionhandler.rs
+  s_de8d39c3c56992::t_91d4da69b650a5 220
+  s_de8d39c3c56992::t_05488c313b0df1 172-178,221,240,256-257,263-264
+  s_de8d39c3c56992::t_dcd5f9e1739af0 258-262,265-270
+wezterm-mux-server-impl/src/dispatch.rs
+  s_de8d39c3c56992::t_dcd5f9e1739af0 123
+ci/test-mux-render-subscriptions.py
+  s_de8d39c3c56992::t_4181fa2b90969a 48-54,56-64,66-68,70-85,87,89-90,96
+  s_de8d39c3c56992::t_ccf3742b809b49 21-34,98-119
+ci/test-mux-render-subscriptions.lua
+  s_de8d39c3c56992::t_ccf3742b809b49 1-21
+  s_de8d39c3c56992::t_456d95921f8362 22-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cb14cac37b1ab7d122a9f95cd4f6b4e7f1b7815c",
+  "prompts": {},
+  "sessions": {
+    "s_de8d39c3c56992": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ad25-3528-7c81-a954-276c13dcabf6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
