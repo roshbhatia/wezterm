@@ -941,7 +941,9 @@ impl TabInner {
         for pane_node in root.floating_panes {
             if let PaneNode::Leaf(entry) = pane_node {
                 let is_zoomed = entry.is_zoomed_pane;
+                let size = entry.size;
                 let floating_pane = make_pane(entry);
+                floating_pane.resize(size).ok();
                 if is_zoomed {
                     zoomed = Some(Arc::clone(&floating_pane))
                 }
@@ -3186,6 +3188,73 @@ mod test {
         assert_eq!(tab.get_active_pane().unwrap().pane_id(), 3);
         assert_eq!(tab.iter_panes()[0].width, size.cols);
         assert_eq!(tab.iter_panes()[0].height, size.rows);
+    }
+
+    #[test]
+    fn remote_float_sync_uses_advertised_size_for_existing_pane() {
+        Mux::set_mux(&Arc::new(Mux::new(None)));
+        let size = TerminalSize {
+            rows: 40,
+            cols: 100,
+            pixel_width: 1000,
+            pixel_height: 800,
+            dpi: 96,
+        };
+        let float_size = TerminalSize {
+            rows: 12,
+            cols: 35,
+            pixel_width: 350,
+            pixel_height: 240,
+            dpi: 96,
+        };
+        let tab = Tab::new(&size);
+        let normal = FakePane::new(1, size);
+        let floating = FakePane::new(
+            2,
+            TerminalSize {
+                rows: 1,
+                cols: 1,
+                ..size
+            },
+        );
+        let entry = |pane_id, size, is_floating_pane| {
+            PaneNode::Leaf(PaneEntry {
+                window_id: 0,
+                tab_id: tab.tab_id(),
+                pane_id,
+                title: String::new(),
+                size,
+                working_dir: None,
+                is_active_pane: true,
+                is_zoomed_pane: false,
+                is_floating_pane,
+                workspace: "test".to_string(),
+                cursor_pos: StableCursorPosition::default(),
+                physical_top: 0,
+                top_row: 0,
+                left_col: 0,
+                tty_name: None,
+            })
+        };
+        tab.sync_with_pane_tree(
+            size,
+            TabEntry {
+                panes: entry(1, size, false),
+                floating_panes: vec![entry(2, float_size, true)],
+                active_floating_pane_index: 0,
+                floating_pane_visible: true,
+            },
+            |entry| {
+                if entry.pane_id == 1 {
+                    normal.clone()
+                } else {
+                    floating.clone()
+                }
+            },
+        );
+        let restored = tab.get_active_floating_pane().unwrap();
+        assert_eq!((restored.width, restored.height), (35, 12));
+        assert_eq!((restored.pixel_width, restored.pixel_height), (350, 240));
     }
 
     #[test]

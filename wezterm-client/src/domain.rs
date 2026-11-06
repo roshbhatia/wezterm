@@ -932,7 +932,11 @@ impl Domain for ClientDomain {
             .inner()
             .ok_or_else(|| anyhow!("domain is not attached"))?;
 
-        let workspace = Mux::get().active_workspace();
+        let mux = Mux::get();
+        let workspace = mux
+            .get_window(window)
+            .map(|window| window.get_workspace().to_string())
+            .unwrap_or_else(|| mux.active_workspace());
 
         let result = inner
             .client

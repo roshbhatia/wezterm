@@ -97,6 +97,31 @@ impl UserData for MuxPane {
             args.unwrap_or_default().run(this).await
         });
 
+        methods.add_async_method(
+            "spawn_floating_pane",
+            |_, this, args: FloatingPane| async move {
+                let mux = get_mux()?;
+                let (_, _, tab_id) = mux
+                    .resolve_pane_id(this.0)
+                    .ok_or_else(|| mlua::Error::external(format!("pane {} not found", this.0)))?;
+                let (command, cwd) = args.cmd_builder.to_command_builder();
+                let (pane, mut size) = mux
+                    .spawn_floating_pane(this.0, command, cwd, args.domain)
+                    .await
+                    .map_err(mlua::Error::external)?;
+                if let Some(width) = args.width {
+                    size.cols = width.max(1);
+                }
+                if let Some(height) = args.height {
+                    size.rows = height.max(1);
+                }
+                pane.resize(size).map_err(mlua::Error::external)?;
+                mux.set_floating_pane_visibility(tab_id, args.visible.unwrap_or(true))
+                    .map_err(mlua::Error::external)?;
+                Ok(MuxPane(pane.pane_id()))
+            },
+        );
+
         methods.add_method("send_paste", |_, this, text: String| {
             let mux = get_mux()?;
             let pane = this.resolve(&mux)?;
@@ -444,6 +469,18 @@ impl UserData for MuxPane {
         });
     }
 }
+
+#[derive(Debug, Default, FromDynamic, ToDynamic)]
+struct FloatingPane {
+    #[dynamic(flatten)]
+    cmd_builder: CommandBuilderFrag,
+    #[dynamic(default = "spawn_tab_default_domain")]
+    domain: SpawnTabDomain,
+    width: Option<usize>,
+    height: Option<usize>,
+    visible: Option<bool>,
+}
+impl_lua_conversion_dynamic!(FloatingPane);
 
 #[derive(Debug, Default, FromDynamic, ToDynamic)]
 struct SplitPane {

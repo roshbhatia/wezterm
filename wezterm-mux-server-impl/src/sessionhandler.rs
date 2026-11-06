@@ -683,7 +683,9 @@ impl SessionHandler {
                             let tab = mux
                                 .get_tab(containing_tab_id)
                                 .ok_or_else(|| anyhow!("no such tab {}", containing_tab_id))?;
-                            tab.rebuild_splits_sizes_from_contained_panes();
+                            if tab.get_floating_pane_by_pane_id(pane_id).is_none() {
+                                tab.rebuild_splits_sizes_from_contained_panes();
+                            }
                             Ok(Pdu::UnitResponse(UnitResponse {}))
                         },
                         send_response,

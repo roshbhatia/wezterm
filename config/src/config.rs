@@ -905,6 +905,9 @@ pub struct Config {
     #[dynamic(default)]
     pub default_mux_server_domain: Option<String>,
 
+    #[dynamic(default = "default_true")]
+    pub mux_server_spawn_initial_tab: bool,
+
     #[dynamic(default)]
     pub default_workspace: Option<String>,
 

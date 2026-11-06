@@ -286,7 +286,7 @@ async fn async_run(cmd: Option<CommandBuilder>) -> anyhow::Result<()> {
         .iter()
         .any(|p| p.domain_id() == domain.domain_id());
 
-    if !have_panes_in_domain {
+    if !have_panes_in_domain && config.mux_server_spawn_initial_tab {
         let workspace = None;
         let position = None;
         let window_id = mux.new_empty_window(workspace, position);
