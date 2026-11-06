@@ -1,0 +1,24 @@
+config/src/config.rs
+  s_de8d39c3c56992::t_57fe8220a30335 2275-2285
+  s_de8d39c3c56992::t_8c1928691b090d 259-261
+ci/test-pane-environment.py
+  s_de8d39c3c56992::t_e501923fac8e35 1-75
+docs/config/lua/config/unset_environment_variables.md
+  s_de8d39c3c56992::t_9afe1d19461bc4 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08b5de1561ee58620a44d27cffde299732537992",
+  "prompts": {},
+  "sessions": {
+    "s_de8d39c3c56992": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ad25-3528-7c81-a954-276c13dcabf6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
