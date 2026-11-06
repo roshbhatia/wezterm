@@ -1255,7 +1255,9 @@ impl TermWindow {
                     alert: Alert::SetUserVar { name, value },
                     pane_id,
                 } => {
-                    self.emit_user_var_event(pane_id, name, value);
+                    if self.window_contains_pane(pane_id) {
+                        self.emit_user_var_event(pane_id, name, value);
+                    }
                 }
                 MuxNotification::Alert {
                     alert: Alert::ProgramStatusChanged(_),
@@ -1266,8 +1268,12 @@ impl TermWindow {
                         self.emit_window_event("program-status-changed", Some(pane_id));
                     }
                 }
-                MuxNotification::WindowTitleChanged { .. }
-                | MuxNotification::Alert {
+                MuxNotification::WindowTitleChanged { window_id, .. } => {
+                    if window_id == self.mux_window_id {
+                        self.update_title();
+                    }
+                }
+                MuxNotification::Alert {
                     alert:
                         Alert::OutputSinceFocusLost
                         | Alert::CurrentWorkingDirectoryChanged
@@ -1275,9 +1281,11 @@ impl TermWindow {
                         | Alert::TabTitleChanged(_)
                         | Alert::IconTitleChanged(_)
                         | Alert::Progress(_),
-                    ..
+                    pane_id,
                 } => {
-                    self.update_title();
+                    if self.window_contains_pane(pane_id) {
+                        self.update_title();
+                    }
                 }
                 MuxNotification::Alert {
                     alert: Alert::PaletteChanged,
