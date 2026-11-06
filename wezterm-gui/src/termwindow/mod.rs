@@ -1348,8 +1348,8 @@ impl TermWindow {
                             || size.pixel_height != self.terminal_size.pixel_height
                         {
                             self.set_window_size(size, window)?;
-                        } else if tab_size.dpi == 0 {
-                            log::debug!("fixup dpi in newly added tab");
+                        } else if tab_size != self.terminal_size {
+                            log::debug!("fit newly added tab to the existing window size");
                             tab.resize(self.terminal_size);
                         }
                     }
