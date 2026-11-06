@@ -256,6 +256,9 @@ pub struct Config {
     #[dynamic(default)]
     pub set_environment_variables: HashMap<String, String>,
 
+    #[dynamic(default)]
+    pub unset_environment_variables: Vec<String>,
+
     /// Specifies the height of a new window, expressed in character cells.
     #[dynamic(default = "default_initial_rows", validate = "validate_row_or_col")]
     pub initial_rows: u16,
@@ -1632,6 +1635,10 @@ impl Config {
             }
         }
 
+        for name in &self.unset_environment_variables {
+            cmd.env_remove(name);
+        }
+
         if wsl_env.is_some() || cfg!(windows) || crate::version::running_under_wsl() {
             let mut wsl_env = wsl_env.unwrap_or_default();
             if !wsl_env.is_empty() {
@@ -2263,6 +2270,21 @@ fn default_colr_rasterizer() -> FontRasterizerSelection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn command_defaults_remove_configured_environment_variables() {
+        let mut config = Config::default();
+        config.unset_environment_variables = vec!["NO_COLOR".to_string()];
+        let mut command = CommandBuilder::new("shell");
+        command.env("NO_COLOR", "1");
+        command.env("PROJECT_CONTEXT", "retained");
+        config.apply_cmd_defaults(&mut command, None, None);
+        assert!(command.get_env("NO_COLOR").is_none());
+        assert_eq!(
+            command.get_env("PROJECT_CONTEXT"),
+            Some(OsStr::new("retained"))
+        );
+    }
 
     #[test]
     fn test_custom_shaders_default_empty() {
