@@ -169,6 +169,13 @@ fn maybe_push_pane_changes(
     }
 
     let config = config::configuration();
+    if !per_pane.sent_initial_palette {
+        for (name, value) in pane.copy_user_vars() {
+            per_pane
+                .notifications
+                .push(Alert::SetUserVar { name, value });
+        }
+    }
     if per_pane.config_generation != config.generation() {
         per_pane.config_generation = config.generation();
         // If the config changed, it may have changed colors
@@ -210,6 +217,8 @@ fn maybe_push_pane_changes(
 
 pub struct SessionHandler {
     to_write_tx: PduSender,
+    // GUI render polling opts in; command-only clients do not drain render pushes.
+    render_subscribed: bool,
     per_pane: HashMap<TabId, Arc<Mutex<PerPane>>>,
     client_id: Option<Arc<ClientId>>,
     proxy_client_id: Option<ClientId>,
@@ -228,6 +237,7 @@ impl SessionHandler {
     pub fn new(to_write_tx: PduSender) -> Self {
         Self {
             to_write_tx,
+            render_subscribed: false,
             per_pane: HashMap::new(),
             client_id: None,
             proxy_client_id: None,
@@ -243,8 +253,22 @@ impl SessionHandler {
     }
 
     pub fn schedule_pane_push(&mut self, pane_id: PaneId) {
+        if self.render_subscribed {
+            let per_pane = self.per_pane(pane_id);
+            self.schedule_render_push(pane_id, per_pane);
+        }
+    }
+
+    pub fn push_alert(&mut self, pane_id: PaneId, alert: Alert) {
+        if self.render_subscribed {
+            let per_pane = self.per_pane(pane_id);
+            per_pane.lock().unwrap().notifications.push(alert);
+            self.schedule_render_push(pane_id, per_pane);
+        }
+    }
+
+    fn schedule_render_push(&self, pane_id: PaneId, per_pane: Arc<Mutex<PerPane>>) {
         let sender = self.to_write_tx.clone();
-        let per_pane = self.per_pane(pane_id);
         spawn_into_main_thread(async move {
             let mux = Mux::get();
             let pane = mux
@@ -844,6 +868,7 @@ impl SessionHandler {
             }
 
             Pdu::GetPaneRenderChanges(GetPaneRenderChanges { pane_id, .. }) => {
+                self.render_subscribed = true;
                 let sender = self.to_write_tx.clone();
                 let per_pane = self.per_pane(pane_id);
                 spawn_into_main_thread(async move {
@@ -1304,4 +1329,19 @@ async fn move_pane(
         tab_id: tab.tab_id(),
         window_id,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn command_only_connections_do_not_collect_render_state() {
+        let mut handler = SessionHandler::new(PduSender::new(|_| {
+            panic!("command-only connection received a render push")
+        }));
+        handler.schedule_pane_push(1);
+        handler.push_alert(1, Alert::WindowTitleChanged("test".to_string()));
+        assert!(handler.per_pane.is_empty());
+    }
 }
