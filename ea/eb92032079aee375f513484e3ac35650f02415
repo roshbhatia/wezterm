@@ -1,0 +1,45 @@
+wezterm-client/src/domain.rs
+  s_de8d39c3c56992::t_63bf5743248ab0 935-939
+wezterm-mux-server/src/main.rs
+  s_de8d39c3c56992::t_826da1e1d45cff 289
+lua-api-crates/mux/src/pane.rs
+  s_de8d39c3c56992::t_d755e5a0578f25 100-116,118-124,473-477,480
+  s_de8d39c3c56992::t_198d1fe20438b2 117,478
+  s_c7495a484be0a4::t_ec76e0da03e721 479,481-484
+docs/config/lua/config/mux_server_spawn_initial_tab.md
+  s_de8d39c3c56992::t_b1ea459ad34f5a 1-9
+docs/config/lua/pane/spawn_floating_pane.md
+  s_de8d39c3c56992::t_bd5f00bd2323b4 1-20
+config/src/config.rs
+  s_de8d39c3c56992::t_826da1e1d45cff 908-910
+mux/src/tab.rs
+  s_de8d39c3c56992::t_6062a68b53a4be 3194-3238,3243-3251
+  s_de8d39c3c56992::t_7f17160a5e2267 944,946
+  s_de8d39c3c56992::t_5dcc768d337046 3193,3239-3242,3252-3259
+wezterm-mux-server-impl/src/sessionhandler.rs
+  s_de8d39c3c56992::t_0ab2f0b7cc631e 686-688
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eaeb92032079aee375f513484e3ac35650f02415",
+  "prompts": {},
+  "sessions": {
+    "s_c7495a484be0a4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1a8f5-858f-7852-b00c-9df8f11cdb78",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    },
+    "s_de8d39c3c56992": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ad25-3528-7c81-a954-276c13dcabf6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
