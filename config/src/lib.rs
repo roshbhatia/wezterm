@@ -886,14 +886,25 @@ mod test {
 
         // A different config Arc (per-window overrides, or a reload)
         // must not hit the cache
-        let other = ConfigHandle::default_config();
+        let mut other = ConfigHandle::default_config();
+        Arc::make_mut(&mut other.config).font_size = 42.0;
         let third = config_handle_to_lua(&lua, &other).unwrap();
         assert_ne!(first, third);
+        let mlua::Value::Table(overridden) = third else {
+            panic!("configuration must be a Lua table");
+        };
+        assert_eq!(overridden.get::<_, f64>("font_size").unwrap(), 42.0);
 
         // A different lua state must not hit the cache either
         let other_lua = Rc::new(Lua::new());
         let fourth = config_handle_to_lua(&other_lua, &handle).unwrap();
-        assert!(matches!(fourth, mlua::Value::Table(_)));
+        let mlua::Value::Table(reloaded) = fourth else {
+            panic!("configuration must be a Lua table");
+        };
+        assert_eq!(
+            reloaded.get::<_, f64>("font_size").unwrap(),
+            handle.font_size
+        );
     }
 }
 

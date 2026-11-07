@@ -3508,6 +3508,7 @@ mod test {
             working_dir: None,
             is_active_pane: pane_id == 1,
             is_zoomed_pane: false,
+            is_floating_pane: false,
             workspace: "default".to_string(),
             cursor_pos: StableCursorPosition::default(),
             physical_top: 0,
@@ -3532,6 +3533,15 @@ mod test {
                 first,
                 second,
             },
+        }
+    }
+
+    fn tab_entry(panes: PaneNode) -> TabEntry {
+        TabEntry {
+            panes,
+            floating_panes: vec![],
+            active_floating_pane_index: 0,
+            floating_pane_visible: false,
         }
     }
 
@@ -3569,7 +3579,7 @@ mod test {
                 leaf(1, cols(1, 24)),
                 leaf(2, cols(1, 24)),
             );
-            tab.sync_with_pane_tree(cols(80, 24), root, |entry| {
+            tab.sync_with_pane_tree(cols(80, 24), tab_entry(root), |entry| {
                 FakePane::new(entry.pane_id, entry.size)
             });
             tab.resize(cols(5, 24));
@@ -3586,7 +3596,7 @@ mod test {
                 leaf(1, cols(80, 1)),
                 leaf(2, cols(80, 1)),
             );
-            tab.sync_with_pane_tree(cols(80, 24), root, |entry| {
+            tab.sync_with_pane_tree(cols(80, 24), tab_entry(root), |entry| {
                 FakePane::new(entry.pane_id, entry.size)
             });
             tab.resize(cols(80, 5));
@@ -3619,7 +3629,7 @@ mod test {
                 leaf(1, cols(54, 24)),
                 inner,
             );
-            tab.sync_with_pane_tree(cols(65, 24), root, |entry| {
+            tab.sync_with_pane_tree(cols(65, 24), tab_entry(root), |entry| {
                 FakePane::new(entry.pane_id, entry.size)
             });
             tab.resize(cols(5, 24));
@@ -3642,7 +3652,7 @@ mod test {
                 leaf(1, cols(80, 54)),
                 inner,
             );
-            tab.sync_with_pane_tree(cols(80, 65), root, |entry| {
+            tab.sync_with_pane_tree(cols(80, 65), tab_entry(root), |entry| {
                 FakePane::new(entry.pane_id, entry.size)
             });
             tab.resize(cols(80, 5));
