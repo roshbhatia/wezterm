@@ -1,0 +1,21 @@
+config/src/lib.rs
+  s_de8d39c3c56992::t_78e81342cf3a9b 889-890,893-896,901-907
+mux/src/tab.rs
+  s_de8d39c3c56992::t_0be7e5d17ed136 3511,3539-3547,3582,3599,3632,3655
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cc1388397d8e756d0d5b84af83d151628eff3989",
+  "prompts": {},
+  "sessions": {
+    "s_de8d39c3c56992": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ad25-3528-7c81-a954-276c13dcabf6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
