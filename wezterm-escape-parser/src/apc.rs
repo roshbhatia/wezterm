@@ -268,9 +268,9 @@ fn read_shared_memory_data(
     data_offset: Option<u32>,
     data_size: Option<u32>,
 ) -> std::result::Result<std::vec::Vec<u8>, std::io::Error> {
-    use nix::sys::mman::{shm_open, shm_unlink};
+    use nix::sys::mman::{MapFlags, ProtFlags, mmap, munmap, shm_open, shm_unlink};
     use std::fs::File;
-    use std::io::{Read, Seek};
+    use std::num::NonZeroUsize;
 
     let fd = shm_open(
         name,
@@ -284,18 +284,39 @@ fn read_shared_memory_data(
             format!("shm_open {} failed: {:#}", name, err),
         )
     })?;
-    let mut f = File::from(fd);
-    if let Some(offset) = data_offset {
-        f.seek(std::io::SeekFrom::Start(offset.into()))?;
+    let f = File::from(fd);
+    let object_size = usize::try_from(f.metadata()?.len())
+        .map_err(|_| std::io::Error::from(std::io::ErrorKind::InvalidData))?;
+    let offset = data_offset.unwrap_or(0) as usize;
+    let available = object_size
+        .checked_sub(offset)
+        .ok_or(std::io::ErrorKind::UnexpectedEof)?;
+    let size = data_size.map(|size| size as usize).unwrap_or(available);
+    if size > available {
+        return Err(std::io::ErrorKind::UnexpectedEof.into());
     }
-    let data = if let Some(len) = data_size {
-        let mut res = vec![0u8; len as usize];
-        f.read_exact(&mut res)?;
-        res
+    let data = if size == 0 {
+        Vec::new()
     } else {
-        let mut res = vec![];
-        f.read_to_end(&mut res)?;
-        res
+        // macOS shared-memory objects support mmap, but not read or seek.
+        let mapping = unsafe {
+            mmap(
+                None,
+                NonZeroUsize::new(object_size).unwrap(),
+                ProtFlags::PROT_READ,
+                MapFlags::MAP_SHARED,
+                &f,
+                0,
+            )?
+        };
+        // The validated range lies within the mapped object.
+        let pixels =
+            unsafe { std::slice::from_raw_parts(mapping.as_ptr().cast::<u8>().add(offset), size) }
+                .to_vec();
+        unsafe {
+            munmap(mapping, object_size)?;
+        }
+        pixels
     };
 
     if let Err(err) = shm_unlink(name) {
@@ -1222,6 +1243,75 @@ mod test {
     #[cfg(not(feature = "std"))]
     use alloc::format;
     use k9::assert_equal as assert_eq;
+
+    #[cfg(all(feature = "kitty-shm", unix, not(target_os = "android")))]
+    fn shared_memory_image(offset: Option<u32>, size: Option<u32>) -> std::io::Result<Vec<u8>> {
+        use nix::sys::mman::{MapFlags, ProtFlags, mmap, munmap, shm_open, shm_unlink};
+        use std::num::NonZeroUsize;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let name = format!(
+            "/wt-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        );
+        let fd = shm_open(
+            name.as_str(),
+            nix::fcntl::OFlag::O_CREAT | nix::fcntl::OFlag::O_EXCL | nix::fcntl::OFlag::O_RDWR,
+            nix::sys::stat::Mode::S_IRUSR | nix::sys::stat::Mode::S_IWUSR,
+        )?;
+        nix::unistd::ftruncate(&fd, 8)?;
+        unsafe {
+            let map = mmap(
+                None,
+                NonZeroUsize::new(8).unwrap(),
+                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
+                MapFlags::MAP_SHARED,
+                &fd,
+                0,
+            )?;
+            std::slice::from_raw_parts_mut(map.as_ptr().cast::<u8>(), 8)
+                .copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+            munmap(map, 8)?;
+        }
+        let result = KittyImageData::SharedMem {
+            name: name.clone(),
+            data_offset: offset,
+            data_size: size,
+        }
+        .load_data();
+        let _ = shm_unlink(name.as_str());
+        result
+    }
+
+    #[test]
+    #[cfg(all(feature = "kitty-shm", unix, not(target_os = "android")))]
+    fn kitty_shared_memory_pixels() {
+        assert_eq!(
+            shared_memory_image(None, Some(8)).unwrap(),
+            vec![1, 2, 3, 4, 5, 6, 7, 8]
+        );
+        assert!(
+            shared_memory_image(None, None)
+                .unwrap()
+                .starts_with(&[1, 2, 3, 4, 5, 6, 7, 8])
+        );
+        assert_eq!(
+            shared_memory_image(Some(2), Some(4)).unwrap(),
+            vec![3, 4, 5, 6]
+        );
+        assert_eq!(
+            shared_memory_image(Some(8), Some(0)).unwrap(),
+            Vec::<u8>::new()
+        );
+    }
+
+    #[test]
+    #[cfg(all(feature = "kitty-shm", unix, not(target_os = "android")))]
+    fn kitty_shared_memory_rejects_out_of_bounds_reads() {
+        assert!(shared_memory_image(Some(u32::MAX), None).is_err());
+        assert!(shared_memory_image(Some(6), Some(u32::MAX)).is_err());
+    }
 
     #[test]
     fn kitty_payload() {
