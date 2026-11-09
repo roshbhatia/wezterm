@@ -1,0 +1,28 @@
+.github/workflows/upstream-sync.yml
+  s_4541d03bc240df::t_479e9953131e0b 1-33
+.github/workflows/fork-build.yml
+  s_4541d03bc240df::t_479e9953131e0b 6-7,42,54-56
+  s_4541d03bc240df::t_fc2c95e285cb93 18-22
+ci/test-sync-upstream.py
+  s_4541d03bc240df::t_cbe6a3e5db4d54 62,79-81
+  s_4541d03bc240df::t_fc2c95e285cb93 1-61,63-78,82-103
+ci/sync-upstream.sh
+  s_4541d03bc240df::t_e96b2fc60ca5ca 10-11,19
+  s_4541d03bc240df::t_479e9953131e0b 1-9,12-18,20-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3a6cb6ccc999aa97711d9da9062fe0717785e69a",
+  "prompts": {},
+  "sessions": {
+    "s_4541d03bc240df": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bd09-f672-7982-8a4f-e1e208a96834",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
