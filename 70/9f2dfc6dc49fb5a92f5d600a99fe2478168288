@@ -1,0 +1,22 @@
+wezterm-escape-parser/src/apc.rs
+  s_4541d03bc240df::t_86d2d9a48bd4da 319,1247-1256,1259,1261-1265,1268,1271
+  s_4541d03bc240df::t_9adaf7a40e1e8e 271,273,287-296,298-299,301-310
+  s_4541d03bc240df::t_cf95d8382ae92e 1257-1258,1260,1266-1267,1273
+  s_4541d03bc240df::t_7526a355b5e761 311-318,1269-1270,1272,1274-1315
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "709f2dfc6dc49fb5a92f5d600a99fe2478168288",
+  "prompts": {},
+  "sessions": {
+    "s_4541d03bc240df": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bd09-f672-7982-8a4f-e1e208a96834",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": null
+    }
+  }
+}
