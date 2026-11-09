@@ -1,0 +1,30 @@
+ci/test-sync-upstream.py
+  s_4541d03bc240df::t_e199228164e71e 5,128-140
+  s_cbfc2e1c995d6a::t_0ba88009e406f8 141-142
+ci/sync-upstream.sh
+  s_4541d03bc240df::t_8486274684c3d3 23-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f6efa58de1603f393377b0d4c51d11039a8e5c3",
+  "prompts": {},
+  "sessions": {
+    "s_4541d03bc240df": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bd09-f672-7982-8a4f-e1e208a96834",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": null
+    },
+    "s_cbfc2e1c995d6a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ae8f-9fe6-7803-a0f2-8366d3b5d6c5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
