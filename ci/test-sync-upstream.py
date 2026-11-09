@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -122,6 +123,21 @@ class SyncTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(self.git(self.origin, "rev-parse", "main"), before)
         self.assertIn("shared.txt", (self.root / "summary").read_text())
+        self.assertFalse(self.log.exists())
+
+    def test_remote_query_failure_stops_before_push(self):
+        self.commit(self.upstream, "upstream.txt", "upstream feature")
+        native_git = shutil.which("git")
+        wrapper = self.root / "bin/git"
+        wrapper.write_text(
+            f"#!{sys.executable}\nimport os,sys\n"
+            "if sys.argv[1]=='ls-remote': raise SystemExit(128)\n"
+            f"os.execv({native_git!r}, ['git', *sys.argv[1:]])\n"
+        )
+        wrapper.chmod(0o755)
+        result = self.sync()
+        self.assertEqual(result.returncode, 128, result.stderr)
+        self.assertEqual(self.git(self.origin, "rev-parse", "main"), self.main)
         self.assertFalse(self.log.exists())
 
 

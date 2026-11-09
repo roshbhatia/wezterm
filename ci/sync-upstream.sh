@@ -20,6 +20,10 @@ if git ls-remote --exit-code --heads origin "${branch}" > /dev/null; then
   previous="$(git rev-parse "origin/${branch}")"
   git switch --detach "${previous}"
 else
+  remote_status=$?
+  if [[ ${remote_status} != 2 ]]; then
+    exit "${remote_status}"
+  fi
   git switch --detach "origin/${base}"
 fi
 
