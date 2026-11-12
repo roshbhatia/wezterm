@@ -1721,8 +1721,20 @@ impl KeyEvent {
         {
             // Check for simple text generating keys
             match &self.key {
+                // Plain Backspace keeps the legacy DEL byte here, including with
+                // DISAMBIGUATE_ESCAPE_CODES: the spec explicitly exempts
+                // Enter, Tab and Backspace from disambiguation so that a user
+                // can still type `reset` at the shell after a program exits
+                // without resetting the keyboard mode.  Backspace is only
+                // CSI-u encoded when it has modifiers or when
+                // REPORT_ALL_KEYS_AS_ESCAPE_CODES is set.
+                // https://sw.kovidgoyal.net/kitty/keyboard-protocol/#disambiguate
                 Char('\x08') => return '\x7f'.to_string(),
-                Char('\x7f') => return '\x08'.to_string(),
+                // Delete has no single-byte legacy encoding; legacy and
+                // DISAMBIGUATE modes both use CSI 3 ~ (kitty omits the modifier
+                // parameter when there are no modifiers).  Delete with modifiers
+                // is encoded as CSI below.
+                Char('\x7f') => return "\x1b[3~".to_string(),
                 // With DISAMBIGUATE_ESCAPE_CODES, ESC must not be sent as a
                 // raw \x1b byte — the entire point of the flag is to eliminate
                 // that ambiguity.  Let it fall through to the CSI-u path below
@@ -1776,26 +1788,32 @@ impl KeyEvent {
             _ => false,
         };
 
-        let generated_text =
-            if self.key_is_down && flags.contains(KittyKeyboardFlags::REPORT_ASSOCIATED_TEXT) {
-                match &self.key {
-                    Char(c) => format!(";{}", *c as u32),
-                    KeyCode::Numpad(n) => format!(";{}", '0' as u32 + *n as u32),
-                    Composed(s) => {
-                        let mut codepoints = ";".to_string();
-                        for c in s.chars() {
-                            if codepoints.len() > 1 {
-                                codepoints.push(':');
-                            }
-                            write!(&mut codepoints, "{}", c as u32).ok();
-                        }
-                        codepoints
-                    }
-                    _ => String::new(),
+        let generated_text = if self.key_is_down
+            && flags.contains(KittyKeyboardFlags::REPORT_ASSOCIATED_TEXT)
+        {
+            match &self.key {
+                Char(c)
+                    if raw_modifiers.contains(Modifiers::CTRL) && ctrl_mapping(*c).is_some() =>
+                {
+                    String::new()
                 }
-            } else {
-                String::new()
-            };
+                Char(c) => format!(";{}", *c as u32),
+                KeyCode::Numpad(n) => format!(";{}", '0' as u32 + *n as u32),
+                Composed(s) => {
+                    let mut codepoints = ";".to_string();
+                    for c in s.chars() {
+                        if codepoints.len() > 1 {
+                            codepoints.push(':');
+                        }
+                        write!(&mut codepoints, "{}", c as u32).ok();
+                    }
+                    codepoints
+                }
+                _ => String::new(),
+            }
+        } else {
+            String::new()
+        };
 
         let guess_phys = self
             .raw
@@ -2000,6 +2018,23 @@ impl KeyEvent {
                 let end_char = if *n < 13 { '~' } else { 'u' };
 
                 format!("{intro};{modifiers}{event_type}{end_char}")
+            }
+
+            Composed(s) => {
+                let use_legacy = self.modifiers.is_empty()
+                    && !flags.contains(KittyKeyboardFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES)
+                    && event_type.is_empty();
+
+                if use_legacy {
+                    s.clone()
+                } else {
+                    // Note: Multi-character IME composed strings are handled by a separate
+                    // text path in keyevent.rs (Key::Composed) and do not reach here.
+                    // This fallback handles single-character Composed keys that were mapped
+                    // to Key::Code, or any potential multichar keys if the layout changes.
+                    let first = s.chars().next().map(|c| c as u32).unwrap_or(0);
+                    format!("\x1b[{first};{modifiers}{event_type}{generated_text}u")
+                }
             }
 
             _ => {
@@ -2529,6 +2564,8 @@ mod test {
             "\x1b[105;8u".to_string()
         );
 
+        // Plain Backspace keeps the legacy DEL byte even with
+        // DISAMBIGUATE_ESCAPE_CODES; the spec exempts it from disambiguation.
         assert_eq!(
             KeyEvent {
                 key: KeyCode::Char('\x08'),
@@ -2557,6 +2594,38 @@ mod test {
             }
             .encode_kitty(flags),
             "\x1b[127;5u".to_string()
+        );
+
+        // Test Delete key encoding with DISAMBIGUATE_ESCAPE_CODES
+        assert_eq!(
+            KeyEvent {
+                key: KeyCode::Char('\x7f'),
+                modifiers: Modifiers::NONE,
+                leds: KeyboardLedStatus::empty(),
+                repeat_count: 1,
+                key_is_down: true,
+                raw: None,
+                #[cfg(windows)]
+                win32_uni_char: None,
+            }
+            .encode_kitty(flags),
+            "\x1b[3~".to_string()
+        );
+
+        // Test Delete key with modifiers
+        assert_eq!(
+            KeyEvent {
+                key: KeyCode::Char('\x7f'),
+                modifiers: Modifiers::CTRL,
+                leds: KeyboardLedStatus::empty(),
+                repeat_count: 1,
+                key_is_down: true,
+                raw: None,
+                #[cfg(windows)]
+                win32_uni_char: None,
+            }
+            .encode_kitty(flags),
+            "\x1b[3;5~".to_string()
         );
     }
 
@@ -3080,6 +3149,43 @@ mod test {
     }
 
     #[test]
+    fn encode_issue_8149() {
+        let flags = KittyKeyboardFlags::DISAMBIGUATE_ESCAPE_CODES
+            | KittyKeyboardFlags::REPORT_EVENT_TYPES
+            | KittyKeyboardFlags::REPORT_ALTERNATE_KEYS
+            | KittyKeyboardFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES
+            | KittyKeyboardFlags::REPORT_ASSOCIATED_TEXT;
+
+        let event = |key, modifiers| KeyEvent {
+            key,
+            modifiers,
+            leds: KeyboardLedStatus::empty(),
+            repeat_count: 1,
+            key_is_down: true,
+            raw: None,
+            #[cfg(windows)]
+            win32_uni_char: None,
+        };
+
+        assert_eq!(
+            event(KeyCode::Char('a'), Modifiers::CTRL).encode_kitty(flags),
+            "\x1b[97;5u"
+        );
+        assert_eq!(
+            event(KeyCode::Char('b'), Modifiers::CTRL).encode_kitty(flags),
+            "\x1b[98;5u"
+        );
+        assert_eq!(
+            event(KeyCode::Char('a'), Modifiers::NONE).encode_kitty(flags),
+            "\x1b[97;1;97u"
+        );
+        assert_eq!(
+            event(KeyCode::Char('A'), Modifiers::SHIFT).encode_kitty(flags),
+            "\x1b[97:65;2;65u"
+        );
+    }
+
+    #[test]
     fn encode_issue_3526() {
         let flags = KittyKeyboardFlags::DISAMBIGUATE_ESCAPE_CODES;
 
@@ -3270,6 +3376,160 @@ mod test {
             }
             .encode_kitty(flags),
             "\x1b[27;1:3u".to_string()
+        );
+    }
+
+    #[test]
+    fn test_legacy_backspace_delete() {
+        // Test without DISAMBIGUATE_ESCAPE_CODES (legacy behavior)
+        let flags = KittyKeyboardFlags::empty();
+
+        // Backspace should send \x7f (DEL)
+        let backspace_event = KeyEvent {
+            key: KeyCode::Char('\x08'),
+            modifiers: Modifiers::NONE,
+            leds: KeyboardLedStatus::empty(),
+            repeat_count: 1,
+            key_is_down: true,
+            raw: None,
+            #[cfg(windows)]
+            win32_uni_char: None,
+        };
+        assert_eq!(backspace_event.encode_kitty(flags), "\x7f".to_string());
+
+        // Delete should send \x1b[3~ (traditional CSI without modifier)
+        let delete_event = KeyEvent {
+            key: KeyCode::Char('\x7f'),
+            modifiers: Modifiers::NONE,
+            leds: KeyboardLedStatus::empty(),
+            repeat_count: 1,
+            key_is_down: true,
+            raw: None,
+            #[cfg(windows)]
+            win32_uni_char: None,
+        };
+        assert_eq!(delete_event.encode_kitty(flags), "\x1b[3~".to_string());
+    }
+    #[test]
+    fn encode_composed_kitty() {
+        // 1. flags = NONE, key_is_down = true -> should encode the composed text as-is
+        let flags = KittyKeyboardFlags::NONE;
+        assert_eq!(
+            KeyEvent {
+                key: KeyCode::Composed("，".to_string()),
+                modifiers: Modifiers::NONE,
+                leds: KeyboardLedStatus::empty(),
+                repeat_count: 1,
+                key_is_down: true,
+                raw: None,
+                #[cfg(windows)]
+                win32_uni_char: None,
+            }
+            .encode_kitty(flags),
+            "，".to_string()
+        );
+
+        // 2. flags = NONE, key_is_down = false -> should encode to empty string
+        assert_eq!(
+            KeyEvent {
+                key: KeyCode::Composed("，".to_string()),
+                modifiers: Modifiers::NONE,
+                leds: KeyboardLedStatus::empty(),
+                repeat_count: 1,
+                key_is_down: false,
+                raw: None,
+                #[cfg(windows)]
+                win32_uni_char: None,
+            }
+            .encode_kitty(flags),
+            "".to_string()
+        );
+
+        // 3. flags = REPORT_ALL_KEYS_AS_ESCAPE_CODES, key_is_down = true -> should encode as CSI-u
+        let flags = KittyKeyboardFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES;
+        assert_eq!(
+            KeyEvent {
+                key: KeyCode::Composed("，".to_string()),
+                modifiers: Modifiers::NONE,
+                leds: KeyboardLedStatus::empty(),
+                repeat_count: 1,
+                key_is_down: true,
+                raw: None,
+                #[cfg(windows)]
+                win32_uni_char: None,
+            }
+            .encode_kitty(flags),
+            "\x1b[65292;1u".to_string()
+        );
+
+        // 4. flags = REPORT_ALL_KEYS_AS_ESCAPE_CODES | REPORT_ASSOCIATED_TEXT, key_is_down = true -> should include text
+        let flags = KittyKeyboardFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES | KittyKeyboardFlags::REPORT_ASSOCIATED_TEXT;
+        assert_eq!(
+            KeyEvent {
+                key: KeyCode::Composed("，".to_string()),
+                modifiers: Modifiers::NONE,
+                leds: KeyboardLedStatus::empty(),
+                repeat_count: 1,
+                key_is_down: true,
+                raw: None,
+                #[cfg(windows)]
+                win32_uni_char: None,
+            }
+            .encode_kitty(flags),
+            "\x1b[65292;1;65292u".to_string()
+        );
+
+        // 5. flags = REPORT_EVENT_TYPES, key_is_down = false -> should encode to release CSI-u
+        let flags = KittyKeyboardFlags::REPORT_EVENT_TYPES;
+        assert_eq!(
+            KeyEvent {
+                key: KeyCode::Composed("，".to_string()),
+                modifiers: Modifiers::NONE,
+                leds: KeyboardLedStatus::empty(),
+                repeat_count: 1,
+                key_is_down: false,
+                raw: None,
+                #[cfg(windows)]
+                win32_uni_char: None,
+            }
+            .encode_kitty(flags),
+            "\x1b[65292;1:3u".to_string()
+        );
+
+        // 6. with modifiers (Ctrl), flags = NONE, key_is_down = true -> should encode as CSI-u with modifiers
+        let flags = KittyKeyboardFlags::NONE;
+        assert_eq!(
+            KeyEvent {
+                key: KeyCode::Composed("，".to_string()),
+                modifiers: Modifiers::CTRL,
+                leds: KeyboardLedStatus::empty(),
+                repeat_count: 1,
+                key_is_down: true,
+                raw: None,
+                #[cfg(windows)]
+                win32_uni_char: None,
+            }
+            .encode_kitty(flags),
+            "\x1b[65292;5u".to_string()
+        );
+
+        // 7. Typical real-world flag combination (DISAMBIGUATE | REPORT_EVENT_TYPES | REPORT_ALTERNATE_KEYS), key_is_down = true -> should return raw text
+        let flags = KittyKeyboardFlags::DISAMBIGUATE_ESCAPE_CODES
+            | KittyKeyboardFlags::REPORT_EVENT_TYPES
+            | KittyKeyboardFlags::REPORT_ALTERNATE_KEYS;
+        assert_eq!(
+            KeyEvent {
+                key: KeyCode::Composed("，".to_string()),
+                modifiers: Modifiers::NONE,
+                leds: KeyboardLedStatus::empty(),
+                repeat_count: 1,
+                key_is_down: true,
+                raw: None,
+                #[cfg(windows)]
+                win32_uni_char: None,
+            }
+            .encode_kitty(flags),
+            "，".to_string()
         );
     }
 }

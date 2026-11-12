@@ -24,6 +24,9 @@ As features stabilize some brief notes about them will accumulate here.
 #### Changed
 * fonts: Default dim/bold text now looks more contrasting, see #8049 for examples.
   Thanks to @bfoersterling (testing) & @hphng for his first OSS contribution! #8097
+* Semantic zones (and thus `ScrollToPrompt`, copy-mode move-by-zone,
+  selection-by-zone, and the `pane:get_semantic_zones()` Lua API) now work
+  for panes served by a remote mux domain. #2880
 * DECRQCRA is now disabled by default to prevent silent screen scraping.
   Set `enable_checksum_rectangular_area = true` to re-enable it.
   Thanks to @jquast! #7701
@@ -168,6 +171,16 @@ As features stabilize some brief notes about them will accumulate here.
   Thanks to @Adams-Galaxy! #8038 #5158
 * perf: Terminal images were hashed three times each on the transmit path; the sha256
   an RGBA image already carries is now reused instead. Thanks to @i-am-logger! #8065
+* Fixed nine places where the kitty image protocol implementation disagreed with
+  the spec. Keys whose protocol default is `0` were read as a literal zero
+  rather than as absent, and raw images were refused when their source held more
+  bytes than their dimensions imply, as a shared memory object always does.
+  Between them these refused conformant images, and were the root of the divide
+  by zero in #6344. #8064
+* Fixed the kitty image data offset, the animation frame gap, transmit-and-display
+  and delete-at-a-z-index being re-encoded under the wrong keys. This affects
+  anything that parses an image escape sequence and writes it back out through
+  `Display`. #8064
 * `ResetTerminal` (RIS) did not reset the `modifyOtherKeys` state. A program
   that left it enabled and exited uncleanly could leave ctrl keys emitting
   escape sequences that the shell doesn't expect. RIS now also resets the
@@ -300,7 +313,7 @@ As features stabilize some brief notes about them will accumulate here.
 * Fix ESC key encoding in kitty mode with disambiguate flag enabled.
   Thanks to @Felixoid and @the-mikedavis! #7787
 * Fixed two divide-by-zero crashes in Kitty inline image placement when a program requests
-  a zero-sized placement (e.g. `w=0`/`h=0`), or displaying a cell-sized image on a pane
+  a placement with nothing to draw, or displaying a cell-sized image on a pane
   whose pty reported no pixel dimensions (e.g. in `tmux -CC` domain).
   Such images are now refused instead of taking down the pane. Thanks to @zakrad! #6344
 * Fix render loop freeze when closing workspaces. Thanks to @JafarAbdi! #7444
