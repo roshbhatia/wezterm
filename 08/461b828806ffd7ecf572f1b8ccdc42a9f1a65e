@@ -1,0 +1,28 @@
+docs/config/lua/keyassignment/InputSelector.md
+  s_7028fc5da01072::t_ea18508b9a25d8 47-49
+wezterm-gui/src/overlay/mod.rs
+  s_7028fc5da01072::t_892005c2a6c670 84,87
+config/src/keyassignment.rs
+  s_7028fc5da01072::t_ea18508b9a25d8 490-497,506-507
+  s_7028fc5da01072::t_bac717655d7cc4 508
+wezterm-gui/src/termwindow/mod.rs
+  s_7028fc5da01072::t_3fbbf6f3cce809 2474,2484-2491,2493-2496
+  s_7028fc5da01072::t_ea18508b9a25d8 2475-2481,2483,2492
+  s_7028fc5da01072::t_892005c2a6c670 3922-3938
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "08461b828806ffd7ecf572f1b8ccdc42a9f1a65e",
+  "prompts": {},
+  "sessions": {
+    "s_7028fc5da01072": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d0ac-4380-7023-8b2f-a382ea7a16c4",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
