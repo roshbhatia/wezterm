@@ -116,7 +116,7 @@ fn run_confirmation_impl(message: &str, term: &mut TermWizTerminal) -> anyhow::R
                 ..
             }) => {
                 if mouse_buttons.intersects(MouseButtons::VERT_WHEEL | MouseButtons::HORZ_WHEEL) {
-                    // Ignore mouswheel/touchpad scrolls 
+                    // Ignore mouswheel/touchpad scrolls
                     continue;
                 }
 

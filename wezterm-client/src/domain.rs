@@ -1189,7 +1189,7 @@ mod test {
     use mux::domain::alloc_domain_id;
     use mux::pane::alloc_pane_id;
     use mux::renderable::StableCursorPosition;
-    use mux::tab::{PaneEntry, PaneNode, Tab};
+    use mux::tab::{PaneEntry, PaneNode, Tab, TabEntry};
     use std::collections::HashMap;
     use wezterm_term::TerminalSize;
 
@@ -1219,22 +1219,28 @@ mod test {
         inner.record_remote_to_local_window_mapping(remote_window_id, stale_local_window_id);
 
         let panes = ListPanesResponse {
-            tabs: vec![PaneNode::Leaf(PaneEntry {
-                window_id: remote_window_id,
-                tab_id: remote_tab_id,
-                pane_id: alloc_pane_id(),
-                title: "remote pane".to_string(),
-                size: TerminalSize::default(),
-                working_dir: None,
-                is_active_pane: true,
-                is_zoomed_pane: false,
-                workspace: "default".to_string(),
-                cursor_pos: StableCursorPosition::default(),
-                physical_top: 0,
-                top_row: 0,
-                left_col: 0,
-                tty_name: None,
-            })],
+            tabs: vec![TabEntry {
+                panes: PaneNode::Leaf(PaneEntry {
+                    window_id: remote_window_id,
+                    tab_id: remote_tab_id,
+                    pane_id: alloc_pane_id(),
+                    title: "remote pane".to_string(),
+                    size: TerminalSize::default(),
+                    working_dir: None,
+                    is_active_pane: true,
+                    is_zoomed_pane: false,
+                    is_floating_pane: false,
+                    workspace: "default".to_string(),
+                    cursor_pos: StableCursorPosition::default(),
+                    physical_top: 0,
+                    top_row: 0,
+                    left_col: 0,
+                    tty_name: None,
+                }),
+                floating_panes: vec![],
+                active_floating_pane_index: 0,
+                floating_pane_visible: false,
+            }],
             tab_titles: vec!["remote tab".to_string()],
             window_titles: HashMap::new(),
         };

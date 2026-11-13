@@ -858,3 +858,58 @@ impl RenderableState {
         self.inner.borrow().dimensions
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::client::Client;
+    use mux::domain::alloc_domain_id;
+    use mux::pane::alloc_pane_id;
+
+    #[test]
+    fn invalidating_lines_preserves_capacity_and_eviction() {
+        let client = Arc::new(ClientInner::new(
+            alloc_domain_id(),
+            Client::dummy(),
+            None,
+            false,
+        ));
+        let dimensions = RenderableDimensions {
+            cols: 80,
+            viewport_rows: 24,
+            scrollback_rows: 24,
+            physical_top: 0,
+            scrollback_top: 0,
+            dpi: 96,
+            pixel_width: 800,
+            pixel_height: 480,
+            reverse_video: false,
+        };
+        let mut inner = RenderableInner::new(
+            &client,
+            alloc_pane_id(),
+            alloc_pane_id(),
+            dimensions,
+            "cache regression",
+            RateLimiter::new(|config| config.ratelimit_mux_line_prefetches_per_second),
+        );
+        let capacity = NonZeroUsize::new(2).unwrap();
+        inner.lines = LruCache::new(capacity);
+        inner.lines.put(0, LineEntry::Line(Line::from("first")));
+        inner.lines.put(1, LineEntry::Line(Line::from("second")));
+
+        for _ in 0..2 {
+            inner.make_all_stale();
+            assert_eq!(inner.lines.cap(), capacity);
+            assert!(inner
+                .lines
+                .iter()
+                .all(|(_, entry)| matches!(entry, LineEntry::Stale(_))));
+        }
+        inner.lines.put(2, LineEntry::Line(Line::from("third")));
+        assert_eq!(inner.lines.len(), capacity.get());
+        assert!(inner.lines.peek(&0).is_none());
+        assert!(inner.lines.peek(&1).is_some());
+        assert!(inner.lines.peek(&2).is_some());
+    }
+}
