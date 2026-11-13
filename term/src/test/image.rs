@@ -158,62 +158,6 @@ fn text_over_kitty_placement_preserves_placement() {
     );
 }
 
-/// Minimal base64 encoder so that the tests below can synthesize kitty
-/// direct-transmission payloads without adding a dependency.
-fn base64_encode(data: &[u8]) -> String {
-    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::new();
-    for chunk in data.chunks(3) {
-        let b = [
-            chunk[0],
-            chunk.get(1).copied().unwrap_or(0),
-            chunk.get(2).copied().unwrap_or(0),
-        ];
-        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
-        out.push(ALPHABET[(n >> 18) as usize & 0x3f] as char);
-        out.push(ALPHABET[(n >> 12) as usize & 0x3f] as char);
-        out.push(if chunk.len() > 1 {
-            ALPHABET[(n >> 6) as usize & 0x3f] as char
-        } else {
-            '='
-        });
-        out.push(if chunk.len() > 2 {
-            ALPHABET[n as usize & 0x3f] as char
-        } else {
-            '='
-        });
-    }
-    out
-}
-
-/// Aggregate per-cell image attachment statistics over the visible screen:
-/// (cells with images, total attachments, max attachments on a single cell,
-/// number of distinct (image_id, placement_id) pairs).
-fn image_attachment_stats(term: &mut TestTerm) -> (usize, usize, usize, usize) {
-    let screen = term.screen_mut();
-    let phys_rows = screen.physical_rows;
-    let top = screen.visible_row_to_stable_row(0);
-    let range = screen.stable_range(&(top..top + phys_rows as crate::StableRowIndex));
-    let mut cells = 0;
-    let mut total = 0;
-    let mut max = 0;
-    let mut pairs = std::collections::HashSet::new();
-    for idx in range {
-        let line = screen.line_mut(idx);
-        for cell in line.visible_cells() {
-            if let Some(images) = cell.attrs().images() {
-                cells += 1;
-                total += images.len();
-                max = max.max(images.len());
-                for im in &images {
-                    pairs.insert((im.image_id(), im.placement_id()));
-                }
-            }
-        }
-    }
-    (cells, total, max, pairs.len())
-}
-
 /// A client that sends no image id (`viu`, once per GIF frame) lands in the
 /// anonymous id 0 bucket; re-placing must replace the attachment, not stack.
 /// See <https://github.com/wezterm/wezterm/issues/7400>.
