@@ -1,0 +1,23 @@
+term/src/terminalstate/image.rs
+  s_7028fc5da01072::t_70da110cc38e19 239-243
+term/src/terminalstate/kitty.rs
+  s_7028fc5da01072::t_d4455b18675715 38-40
+term/src/test/image.rs
+  s_7028fc5da01072::t_d6e96a09d17cdd 161-277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ced51d84b29390fbe48be5524b554179fbe2f3e6",
+  "prompts": {},
+  "sessions": {
+    "s_7028fc5da01072": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d0ac-4380-7023-8b2f-a382ea7a16c4",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
