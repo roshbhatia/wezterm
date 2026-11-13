@@ -44,6 +44,9 @@ These additional fields are also available:
   `"Select an item and press Enter = accept,  Esc = cancel,  / = filter"`.
 * `fuzzy_description` - a string to display when in fuzzy finding mode. Defaults to:
   `"Fuzzy matching: "`.
+* `scope` - `"Window"` (default) covers the tab, `"Pane"` draws within the active
+  pane, and `"Auto"` uses the active floating pane when one is focused and the
+  full tab otherwise. Cancelling a pane-scoped selector returns to its pane.
 
 
 ### Key Assignments

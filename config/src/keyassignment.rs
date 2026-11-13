@@ -487,6 +487,14 @@ pub struct InputSelectorEntry {
     pub id: Option<String>,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, FromDynamic, ToDynamic)]
+pub enum InputSelectorScope {
+    #[default]
+    Window,
+    Pane,
+    Auto,
+}
+
 #[derive(Debug, Clone, PartialEq, FromDynamic, ToDynamic)]
 pub struct InputSelector {
     pub action: Box<KeyAssignment>,
@@ -494,6 +502,9 @@ pub struct InputSelector {
     pub title: String,
 
     pub choices: Vec<InputSelectorEntry>,
+
+    #[dynamic(default)]
+    pub scope: InputSelectorScope,
 
     #[dynamic(default)]
     pub fuzzy: bool,
