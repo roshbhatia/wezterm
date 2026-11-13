@@ -236,6 +236,11 @@ impl TerminalState {
                 ));
                 match params.style {
                     ImageAttachStyle::Kitty => {
+                        // Replace the prior placement before writing the complete attachment set.
+                        if let Some(image_id) = params.image_id {
+                            cell.attrs_mut()
+                                .detach_image_with_placement(image_id, params.placement_id);
+                        }
                         cell.attrs_mut().attach_image(img);
                         self.screen_mut().set_cell_clearing_image_placements(
                             cursor_x + x,
