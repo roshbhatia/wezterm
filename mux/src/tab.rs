@@ -818,6 +818,43 @@ impl Tab {
         self.inner.lock().set_active_floating_pane(index, true);
     }
 
+    // Remote state updates repaint the view without emitting another request
+    // or reporting the echoed focus change back to the server.
+    pub fn sync_floating_pane_visibility(&self, visible: bool) -> bool {
+        let mut inner = self.inner.lock();
+        if visible && inner.floating_panes.is_empty() {
+            return false;
+        }
+        let changed = inner.floating_pane_visible != visible;
+        inner.floating_pane_visible = visible;
+        drop(inner);
+        if changed {
+            self.invalidate_floating_pane_state();
+        }
+        true
+    }
+
+    pub fn sync_active_floating_pane(&self, index: usize) -> bool {
+        let mut inner = self.inner.lock();
+        if index >= inner.floating_panes.len() {
+            return false;
+        }
+        let changed = inner.active_floating_pane != index;
+        inner.active_floating_pane = index;
+        drop(inner);
+        if changed {
+            self.invalidate_floating_pane_state();
+        }
+        true
+    }
+
+    fn invalidate_floating_pane_state(&self) {
+        let mux = Mux::get();
+        if let Some(window_id) = mux.window_containing_tab(self.tab_id) {
+            mux.notify(MuxNotification::WindowInvalidated(window_id));
+        }
+    }
+
     pub fn append_floating_pane(&self, pane: Arc<dyn Pane>) {
         self.inner.lock().append_floating_pane(pane);
     }
@@ -3171,6 +3208,50 @@ mod test {
         );
         assert!(inner.floating_panes.is_empty());
         assert_eq!(inner.active_floating_pane, 0);
+    }
+
+    #[test]
+    fn remote_float_updates_do_not_echo_state_or_focus() {
+        let mux = Arc::new(Mux::new(None));
+        Mux::set_mux(&mux);
+        let size = TerminalSize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 800,
+            pixel_height: 600,
+            dpi: 96,
+        };
+        let tab = Tab::new(&size);
+        tab.assign_pane(&FakePane::new(1, size));
+        assert!(!tab.sync_floating_pane_visibility(true));
+        assert!(!tab.sync_active_floating_pane(0));
+        assert!(tab.sync_floating_pane_visibility(false));
+        tab.add_floating_pane(size, FakePane::new(2, size)).unwrap();
+        tab.add_floating_pane(size, FakePane::new(3, size)).unwrap();
+        let echoed = Arc::new(Mutex::new(Vec::new()));
+        let capture = Arc::clone(&echoed);
+        mux.subscribe(move |event| {
+            if matches!(
+                event,
+                MuxNotification::FloatingPaneVisibilityChanged { .. }
+                    | MuxNotification::ActiveFloatingPaneChanged { .. }
+                    | MuxNotification::PaneFocused(_)
+            ) {
+                capture.lock().push(event);
+            }
+            true
+        });
+        assert!(tab.sync_floating_pane_visibility(false));
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 1);
+        assert!(tab.sync_active_floating_pane(0));
+        assert!(tab.sync_floating_pane_visibility(true));
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 2);
+        assert!(!tab.sync_active_floating_pane(99));
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 2);
+        assert!(echoed.lock().is_empty());
+        // Local interaction still emits the notifications that drive RPCs.
+        tab.set_floating_pane_visibility(false);
+        assert!(!echoed.lock().is_empty());
     }
 
     #[test]

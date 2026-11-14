@@ -312,8 +312,9 @@ fn process_unilateral(
                             anyhow!("domain {} is not a ClientDomain instance", local_domain_id)
                         })?;
 
-                client_domain.set_floating_pane_visibility(tab_id, visible);
-                let _ = client_domain.resync().await;
+                if !client_domain.sync_floating_pane_visibility(tab_id, visible) {
+                    client_domain.resync().await?;
+                }
                 anyhow::Result::<()>::Ok(())
             })
             .detach();
@@ -335,9 +336,9 @@ fn process_unilateral(
                             anyhow!("domain {} is not a ClientDomain instance", local_domain_id)
                         })?;
 
-                client_domain.set_active_floating_pane(index, tab_id);
-                //TODO: is resync the best way to do this?
-                let _ = client_domain.resync().await;
+                if !client_domain.sync_active_floating_pane(index, tab_id) {
+                    client_domain.resync().await?;
+                }
 
                 anyhow::Result::<()>::Ok(())
             })

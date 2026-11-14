@@ -548,16 +548,16 @@ impl ClientDomain {
         }
     }
 
-    pub fn set_floating_pane_visibility(&self, remote_tab_id: TabId, visible: bool) {
-        if let Some(tab) = self.get_local_tab(remote_tab_id) {
-            tab.set_floating_pane_visibility(visible);
-        }
+    pub fn sync_floating_pane_visibility(&self, remote_tab_id: TabId, visible: bool) -> bool {
+        self.get_local_tab(remote_tab_id)
+            .map(|tab| tab.sync_floating_pane_visibility(visible))
+            .unwrap_or(false)
     }
 
-    pub fn set_active_floating_pane(&self, index: usize, remote_tab_id: TabId) {
-        if let Some(tab) = self.get_local_tab(remote_tab_id) {
-            tab.set_active_floating_pane(index);
-        }
+    pub fn sync_active_floating_pane(&self, index: usize, remote_tab_id: TabId) -> bool {
+        self.get_local_tab(remote_tab_id)
+            .map(|tab| tab.sync_active_floating_pane(index))
+            .unwrap_or(false)
     }
 
     fn process_pane_list(
