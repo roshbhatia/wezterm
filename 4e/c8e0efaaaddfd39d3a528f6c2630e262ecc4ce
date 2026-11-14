@@ -1,0 +1,21 @@
+config/src/keyassignment.rs
+  s_7028fc5da01072::t_f9e5630e4ec679 617
+wezterm-gui/src/termwindow/mod.rs
+  s_7028fc5da01072::t_f9e5630e4ec679 3177-3187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4ec8e0efaaaddfd39d3a528f6c2630e262ecc4ce",
+  "prompts": {},
+  "sessions": {
+    "s_7028fc5da01072": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d0ac-4380-7023-8b2f-a382ea7a16c4",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
