@@ -3174,6 +3174,17 @@ impl TermWindow {
                     }
                 }
             }
+            ActivatePaneById(pane_id) => {
+                if let Some(tab) = Mux::get().get_active_tab_for_window(self.mux_window_id) {
+                    if let Some(target) = tab
+                        .iter_panes_including_floating()
+                        .into_iter()
+                        .find(|pos| pos.pane.pane_id() == *pane_id)
+                    {
+                        tab.set_active_pane(&target.pane);
+                    }
+                }
+            }
             ActivatePaneByIndex(index) => {
                 let mux = Mux::get();
                 let tab = match mux.get_active_tab_for_window(self.mux_window_id) {

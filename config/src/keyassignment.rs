@@ -614,6 +614,7 @@ pub enum KeyAssignment {
     ScaleFloatingPane(i8),
     ActivatePaneDirection(PaneDirection),
     ActivatePaneByIndex(usize),
+    ActivatePaneById(usize),
     TogglePaneZoomState,
     SetPaneZoomState(bool),
     CloseCurrentPane {
