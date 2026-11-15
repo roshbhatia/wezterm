@@ -81,9 +81,10 @@ where
 
     let window = term_window.window.clone().unwrap();
 
+    let overlay_pane_id = tw_tab.pane_id();
     let future = promise::spawn::spawn_into_new_thread(move || {
         let res = func(pane_id, tw_term);
-        TermWindow::schedule_cancel_overlay_for_pane(window, pane_id);
+        TermWindow::schedule_cancel_overlay_for_pane_if_current(window, pane_id, overlay_pane_id);
         res
     });
 

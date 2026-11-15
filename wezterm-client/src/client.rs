@@ -312,8 +312,9 @@ fn process_unilateral(
                             anyhow!("domain {} is not a ClientDomain instance", local_domain_id)
                         })?;
 
-                client_domain.set_floating_pane_visibility(tab_id, visible);
-                let _ = client_domain.resync().await;
+                if !client_domain.sync_floating_pane_visibility(tab_id, visible) {
+                    client_domain.resync().await?;
+                }
                 anyhow::Result::<()>::Ok(())
             })
             .detach();
@@ -335,9 +336,9 @@ fn process_unilateral(
                             anyhow!("domain {} is not a ClientDomain instance", local_domain_id)
                         })?;
 
-                client_domain.set_active_floating_pane(index, tab_id);
-                //TODO: is resync the best way to do this?
-                let _ = client_domain.resync().await;
+                if !client_domain.sync_active_floating_pane(index, tab_id) {
+                    client_domain.resync().await?;
+                }
 
                 anyhow::Result::<()>::Ok(())
             })
@@ -1085,6 +1086,19 @@ impl Reconnectable {
 }
 
 impl Client {
+    #[cfg(test)]
+    pub(crate) fn dummy() -> Self {
+        let (sender, _rx) = unbounded();
+        Self {
+            sender,
+            local_domain_id: None,
+            client_id: ClientId::new(),
+            client_domain_config: ClientDomainConfig::Unix(config::UnixDomain::default()),
+            is_reconnectable: false,
+            is_local: false,
+        }
+    }
+
     fn new(local_domain_id: Option<DomainId>, mut reconnectable: Reconnectable) -> Self {
         let client_domain_config = reconnectable.config.clone();
         let is_reconnectable = reconnectable.reconnectable();

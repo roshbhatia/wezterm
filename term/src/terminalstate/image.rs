@@ -235,14 +235,26 @@ impl TerminalState {
                     params.placement_id,
                 ));
                 match params.style {
-                    ImageAttachStyle::Kitty => cell.attrs_mut().attach_image(img),
+                    ImageAttachStyle::Kitty => {
+                        // Replace the prior placement before writing the complete attachment set.
+                        if let Some(image_id) = params.image_id {
+                            cell.attrs_mut()
+                                .detach_image_with_placement(image_id, params.placement_id);
+                        }
+                        cell.attrs_mut().attach_image(img);
+                        self.screen_mut().set_cell_clearing_image_placements(
+                            cursor_x + x,
+                            cursor_y,
+                            &cell,
+                            seqno,
+                        );
+                    }
                     ImageAttachStyle::Sixel | ImageAttachStyle::Iterm => {
-                        cell.attrs_mut().set_image(img)
+                        cell.attrs_mut().set_image(img);
+                        self.screen_mut()
+                            .set_cell(cursor_x + x, cursor_y, &cell, seqno);
                     }
                 };
-
-                self.screen_mut()
-                    .set_cell(cursor_x + x, cursor_y, &cell, seqno);
                 xpos += x_delta;
             }
             ypos += y_delta;

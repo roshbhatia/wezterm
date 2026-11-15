@@ -2471,12 +2471,29 @@ impl TermWindow {
         let args = args.clone();
 
         let gui_win = GuiWin::new(self);
-        let pane = MuxPane(pane.pane_id());
+        let pane_id = pane.pane_id();
+        let pane_scoped = match args.scope {
+            config::keyassignment::InputSelectorScope::Window => false,
+            config::keyassignment::InputSelectorScope::Pane => true,
+            config::keyassignment::InputSelectorScope::Auto => {
+                tab.get_floating_pane_by_pane_id(pane_id).is_some()
+            }
+        };
 
-        let (overlay, future) = start_overlay(self, &tab, move |_tab_id, term| {
-            crate::overlay::selector::selector(term, args, gui_win, pane)
-        });
-        self.assign_overlay(tab.tab_id(), overlay);
+        let (overlay, future) = if pane_scoped {
+            start_overlay_pane(self, &pane, move |_pane_id, term| {
+                crate::overlay::selector::selector(term, args, gui_win, MuxPane(pane_id))
+            })
+        } else {
+            start_overlay(self, &tab, move |_tab_id, term| {
+                crate::overlay::selector::selector(term, args, gui_win, MuxPane(pane_id))
+            })
+        };
+        if pane_scoped {
+            self.assign_overlay_for_pane(pane_id, overlay);
+        } else {
+            self.assign_overlay(tab.tab_id(), overlay);
+        }
         promise::spawn::spawn(future).detach();
     }
 
@@ -3154,6 +3171,17 @@ impl TermWindow {
                 if let Some(tab) = Mux::get().get_active_tab_for_window(self.mux_window_id) {
                     if self.tab_state(tab.tab_id()).overlay.is_none() {
                         tab.scale_floating_pane(*percent);
+                    }
+                }
+            }
+            ActivatePaneById(pane_id) => {
+                if let Some(tab) = Mux::get().get_active_tab_for_window(self.mux_window_id) {
+                    if let Some(target) = tab
+                        .iter_panes_including_floating()
+                        .into_iter()
+                        .find(|pos| pos.pane.pane_id() == *pane_id)
+                    {
+                        tab.set_active_pane(&target.pane);
                     }
                 }
             }
@@ -3902,6 +3930,23 @@ impl TermWindow {
 
     pub fn schedule_cancel_overlay_for_pane(window: Window, pane_id: PaneId) {
         window.notify(TermWindowNotif::CancelOverlayForPane(pane_id));
+    }
+
+    pub fn schedule_cancel_overlay_for_pane_if_current(
+        window: Window,
+        pane_id: PaneId,
+        overlay_pane_id: PaneId,
+    ) {
+        window.notify(TermWindowNotif::Apply(Box::new(move |term_window| {
+            let current = term_window
+                .pane_state(pane_id)
+                .overlay
+                .as_ref()
+                .map(|overlay| overlay.pane.pane_id());
+            if current == Some(overlay_pane_id) {
+                term_window.cancel_overlay_for_pane(pane_id);
+            }
+        })));
     }
 
     pub fn assign_overlay_for_pane(&mut self, pane_id: PaneId, pane: Arc<dyn Pane>) {

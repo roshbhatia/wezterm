@@ -1030,6 +1030,14 @@ pub fn derive_command_from_key_assignment(action: &KeyAssignment) -> Option<Comm
                 icon: None,
             }
         }
+        ActivatePaneById(id) => CommandDef {
+            brief: format!("Activate Pane {id}").into(),
+            doc: format!("Activates pane {id} in the current tab, including floating panes").into(),
+            keys: vec![],
+            args: &[ArgType::ActiveWindow],
+            menubar: &[],
+            icon: None,
+        },
         ActivatePaneByIndex(n) => {
             let n = *n;
             let ordinal = english_ordinal(n as isize);

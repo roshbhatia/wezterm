@@ -3463,7 +3463,8 @@ mod test {
         );
 
         // 4. flags = REPORT_ALL_KEYS_AS_ESCAPE_CODES | REPORT_ASSOCIATED_TEXT, key_is_down = true -> should include text
-        let flags = KittyKeyboardFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES | KittyKeyboardFlags::REPORT_ASSOCIATED_TEXT;
+        let flags = KittyKeyboardFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES
+            | KittyKeyboardFlags::REPORT_ASSOCIATED_TEXT;
         assert_eq!(
             KeyEvent {
                 key: KeyCode::Composed("，".to_string()),

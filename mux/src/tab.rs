@@ -818,6 +818,43 @@ impl Tab {
         self.inner.lock().set_active_floating_pane(index, true);
     }
 
+    // Remote state updates repaint the view without emitting another request
+    // or reporting the echoed focus change back to the server.
+    pub fn sync_floating_pane_visibility(&self, visible: bool) -> bool {
+        let mut inner = self.inner.lock();
+        if visible && inner.floating_panes.is_empty() {
+            return false;
+        }
+        let changed = inner.floating_pane_visible != visible;
+        inner.floating_pane_visible = visible;
+        drop(inner);
+        if changed {
+            self.invalidate_floating_pane_state();
+        }
+        true
+    }
+
+    pub fn sync_active_floating_pane(&self, index: usize) -> bool {
+        let mut inner = self.inner.lock();
+        if index >= inner.floating_panes.len() {
+            return false;
+        }
+        let changed = inner.active_floating_pane != index;
+        inner.active_floating_pane = index;
+        drop(inner);
+        if changed {
+            self.invalidate_floating_pane_state();
+        }
+        true
+    }
+
+    fn invalidate_floating_pane_state(&self) {
+        let mux = Mux::get();
+        if let Some(window_id) = mux.window_containing_tab(self.tab_id) {
+            mux.notify(MuxNotification::WindowInvalidated(window_id));
+        }
+    }
+
     pub fn append_floating_pane(&self, pane: Arc<dyn Pane>) {
         self.inner.lock().append_floating_pane(pane);
     }
@@ -2589,11 +2626,15 @@ impl TabInner {
                 // Pre-emptively resize the tab contents down to
                 // match the target size; it's easier to reuse
                 // existing resize logic that way
-                if request.target_is_second {
-                    self.resize(split_info.first.clone());
+                let (pane_size, rest_size) = if request.target_is_second {
+                    (split_info.second, split_info.first)
                 } else {
-                    self.resize(split_info.second.clone());
-                }
+                    (split_info.first, split_info.second)
+                };
+                pane.resize(pane_size)?;
+                self.resize(rest_size);
+                // Restore the overall tab size
+                self.size = tab_size;
             }
 
             let mut cursor = self.pane.take().unwrap().cursor();
@@ -3170,6 +3211,50 @@ mod test {
     }
 
     #[test]
+    fn remote_float_updates_do_not_echo_state_or_focus() {
+        let mux = Arc::new(Mux::new(None));
+        Mux::set_mux(&mux);
+        let size = TerminalSize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 800,
+            pixel_height: 600,
+            dpi: 96,
+        };
+        let tab = Tab::new(&size);
+        tab.assign_pane(&FakePane::new(1, size));
+        assert!(!tab.sync_floating_pane_visibility(true));
+        assert!(!tab.sync_active_floating_pane(0));
+        assert!(tab.sync_floating_pane_visibility(false));
+        tab.add_floating_pane(size, FakePane::new(2, size)).unwrap();
+        tab.add_floating_pane(size, FakePane::new(3, size)).unwrap();
+        let echoed = Arc::new(Mutex::new(Vec::new()));
+        let capture = Arc::clone(&echoed);
+        mux.subscribe(move |event| {
+            if matches!(
+                event,
+                MuxNotification::FloatingPaneVisibilityChanged { .. }
+                    | MuxNotification::ActiveFloatingPaneChanged { .. }
+                    | MuxNotification::PaneFocused(_)
+            ) {
+                capture.lock().push(event);
+            }
+            true
+        });
+        assert!(tab.sync_floating_pane_visibility(false));
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 1);
+        assert!(tab.sync_active_floating_pane(0));
+        assert!(tab.sync_floating_pane_visibility(true));
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 2);
+        assert!(!tab.sync_active_floating_pane(99));
+        assert_eq!(tab.get_active_pane().unwrap().pane_id(), 2);
+        assert!(echoed.lock().is_empty());
+        // Local interaction still emits the notifications that drive RPCs.
+        tab.set_floating_pane_visibility(false);
+        assert!(!echoed.lock().is_empty());
+    }
+
+    #[test]
     fn floating_pane_focus_and_close_confirmation() {
         Mux::set_mux(&Arc::new(Mux::new(None)));
         let size = TerminalSize {
@@ -3658,6 +3743,136 @@ mod test {
             tab.resize(cols(80, 5));
             assert_eq!(3, tab.iter_panes().len());
         });
+    }
+
+    /// Assert that the panes tile the tab exactly: the tab reports
+    /// `expected`, the extent of the positioned panes equals the tab size,
+    /// and each pane's own size matches its slot in the tree.
+    fn assert_tab_consistent(tab: &Tab, expected: &TerminalSize, ctx: &str) {
+        let size = tab.get_size();
+        assert_eq!(size.cols, expected.cols, "{ctx}: tab cols");
+        assert_eq!(size.rows, expected.rows, "{ctx}: tab rows");
+
+        let panes = tab.iter_panes();
+        let max_right = panes.iter().map(|p| p.left + p.width).max().unwrap();
+        let max_bottom = panes.iter().map(|p| p.top + p.height).max().unwrap();
+        assert_eq!(max_right, expected.cols, "{ctx}: pane extent cols");
+        assert_eq!(max_bottom, expected.rows, "{ctx}: pane extent rows");
+
+        for p in &panes {
+            let dims = p.pane.get_dimensions();
+            assert_eq!(dims.cols, p.width, "{ctx}: pane {} cols", p.index);
+            assert_eq!(dims.viewport_rows, p.height, "{ctx}: pane {} rows", p.index);
+        }
+    }
+
+    fn top_level_request(direction: SplitDirection, target_is_second: bool) -> SplitRequest {
+        SplitRequest {
+            direction,
+            top_level: true,
+            target_is_second,
+            size: Default::default(),
+        }
+    }
+
+    /// Builds a 152x50 tab with two panes split in `initial` direction.
+    fn tab_with_two_panes(initial: SplitDirection) -> (Tab, TerminalSize) {
+        let size = TerminalSize {
+            rows: 50,
+            cols: 152,
+            pixel_width: 152 * 10,
+            pixel_height: 50 * 25,
+            dpi: 96,
+        };
+        let tab = Tab::new(&size);
+        tab.assign_pane(&FakePane::new(1, size));
+        let req = SplitRequest {
+            direction: initial,
+            ..Default::default()
+        };
+        let info = tab.compute_split_size(0, req).unwrap();
+        tab.split_and_insert(0, req, FakePane::new(2, info.second))
+            .unwrap();
+        assert_tab_consistent(&tab, &size, "initial");
+        (tab, size)
+    }
+
+    #[test]
+    fn top_level_split_keeps_tab_size_consistent() {
+        for initial in [SplitDirection::Horizontal, SplitDirection::Vertical] {
+            for direction in [SplitDirection::Horizontal, SplitDirection::Vertical] {
+                for target_is_second in [false, true] {
+                    let ctx = format!(
+                        "initial={initial:?} direction={direction:?} second={target_is_second}"
+                    );
+                    let (tab, size) = tab_with_two_panes(initial);
+                    let request = top_level_request(direction, target_is_second);
+                    let info = tab.compute_split_size(0, request).unwrap();
+                    // Deliberately create the new pane at a stale size, like a
+                    // pane moved from another tab, to verify that the tab
+                    // resizes it into its slot.
+                    let stale = TerminalSize {
+                        rows: 24,
+                        cols: 76,
+                        pixel_width: 760,
+                        pixel_height: 600,
+                        dpi: 96,
+                    };
+                    let new_pane = FakePane::new(3, stale);
+                    let new_index = tab.split_and_insert(0, request, new_pane).unwrap();
+                    let panes = tab.iter_panes();
+                    assert_eq!(panes.len(), 3, "{ctx}");
+
+                    // The inserted pane occupies the requested edge slot
+                    let expected_slot = if target_is_second {
+                        info.second
+                    } else {
+                        info.first
+                    };
+                    let inserted = &panes[new_index];
+                    assert_eq!(inserted.pane.pane_id(), 3, "{ctx}");
+                    assert_eq!(inserted.width, expected_slot.cols, "{ctx}");
+                    assert_eq!(inserted.height, expected_slot.rows, "{ctx}");
+
+                    assert_tab_consistent(&tab, &size, &format!("{ctx}: after split"));
+
+                    // A later resize must keep things consistent
+                    for (cols, rows) in [(100, 30), (200, 60), (152, 50)] {
+                        let new_size = TerminalSize {
+                            rows,
+                            cols,
+                            pixel_width: cols * 10,
+                            pixel_height: rows * 25,
+                            dpi: 96,
+                        };
+                        tab.resize(new_size);
+                        assert_tab_consistent(
+                            &tab,
+                            &new_size,
+                            &format!("{ctx}: after resize to {cols}x{rows}"),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn top_level_split_single_pane_unchanged() {
+        let size = TerminalSize {
+            rows: 50,
+            cols: 152,
+            pixel_width: 1520,
+            pixel_height: 1250,
+            dpi: 96,
+        };
+        let tab = Tab::new(&size);
+        tab.assign_pane(&FakePane::new(1, size));
+        let request = top_level_request(SplitDirection::Horizontal, true);
+        let info = tab.compute_split_size(0, request).unwrap();
+        tab.split_and_insert(0, request, FakePane::new(2, info.second))
+            .unwrap();
+        assert_tab_consistent(&tab, &size, "single pane top-level");
     }
 
     fn is_send_and_sync<T: Send + Sync>() -> bool {
