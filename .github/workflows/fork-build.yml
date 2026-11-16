@@ -51,6 +51,9 @@ jobs:
           test -x result/bin/wezterm-mux-server
           test -r result/share/wezterm/shaders/cursor-trail.wgsl
           nix path-info --json ./result > nix-${{ matrix.system }}.json
+      - name: Verify GUI mux rendering and focus
+        if: runner.os == 'macOS'
+        run: python3 ci/test-mux-render-subscriptions.py result/bin/wezterm-mux-server result/bin/wezterm-gui
       - name: Publish the main closure
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: nix path-info --recursive ./result | cachix push roshbhatia
