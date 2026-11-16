@@ -238,6 +238,12 @@ impl ClientPane {
                 self.client.expire_stale_mappings();
             }
             Pdu::PaneFocused(PaneFocused { pane_id }) => {
+                // Remote focus must not be echoed as another focus request.
+                self.client
+                    .focused_remote_pane_id
+                    .lock()
+                    .unwrap()
+                    .replace(pane_id);
                 // We get here whenever the pane focus is changed on the
                 // server. That might be due to the user here in the GUI
                 // doing things, or it may be due to a "remote"
@@ -250,6 +256,18 @@ impl ClientPane {
                 log::trace!("advised of remote pane focus: {pane_id}");
 
                 let mux = Mux::get();
+                if let Some(tab) = mux
+                    .resolve_pane_id(self.local_pane_id)
+                    .and_then(|(_, _, tab_id)| mux.get_tab(tab_id))
+                {
+                    // Apply float state silently before focus can emit local RPCs.
+                    if let Some((index, _)) = tab.get_floating_pane_by_pane_id(self.local_pane_id) {
+                        tab.sync_active_floating_pane(index);
+                        tab.sync_floating_pane_visibility(true);
+                    } else {
+                        tab.sync_floating_pane_visibility(false);
+                    }
+                }
                 if let Err(err) = mux.focus_pane_and_containing_tab(self.local_pane_id) {
                     log::error!("Error reconciling remote PaneFocused notification: {err:#}");
                 }

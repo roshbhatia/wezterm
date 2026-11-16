@@ -1521,3 +1521,122 @@ impl Client {
     );
     rpc!(adjust_pane_size, AdjustPaneSize, UnitResponse);
 }
+
+#[cfg(test)]
+mod focus_tests {
+    use super::*;
+    use crate::domain::ClientInner;
+    use mux::domain::alloc_domain_id;
+    use mux::pane::Pane;
+    use mux::tab::Tab;
+    use std::sync::Arc;
+    use wezterm_term::TerminalSize;
+
+    #[test]
+    fn remote_pane_focus_does_not_echo_but_local_focus_does() {
+        let (pending, ready) = unbounded();
+        let pending_low = pending.clone();
+        promise::spawn::set_schedulers(
+            Box::new(move |task| {
+                pending.try_send(task).ok();
+            }),
+            Box::new(move |task| {
+                pending_low.try_send(task).ok();
+            }),
+        );
+        let drain = || {
+            while let Ok(task) = ready.try_recv() {
+                task.run();
+            }
+        };
+        {
+            let mux = Arc::new(Mux::new(None));
+            Mux::set_mux(&mux);
+            let (sender, requests) = unbounded();
+            let mut client = Client::dummy();
+            client.sender = sender;
+            let inner = Arc::new(ClientInner::new(alloc_domain_id(), client, None, false));
+            let size = TerminalSize::default();
+            let normal = Arc::new(ClientPane::new(&inner, 10, 100, size, "normal"));
+            let floating = Arc::new(ClientPane::new(&inner, 10, 200, size, "floating"));
+            let normal_pane: Arc<dyn Pane> = normal.clone();
+            let floating_pane: Arc<dyn Pane> = floating.clone();
+            let tab = Arc::new(Tab::new(&size));
+            tab.assign_pane(&normal_pane);
+            mux.add_pane(&normal_pane).unwrap();
+            mux.add_pane(&floating_pane).unwrap();
+            mux.add_tab_no_panes(&tab);
+            let window = *mux.new_empty_window(None, None);
+            mux.add_tab_to_window(&tab, window).unwrap();
+            tab.add_floating_pane(size, floating_pane).unwrap();
+            drain();
+            while requests.try_recv().is_ok() {}
+            let state_echoes = Arc::new(std::sync::Mutex::new(0));
+            let capture = Arc::clone(&state_echoes);
+            mux.subscribe(move |event| {
+                if matches!(
+                    event,
+                    mux::MuxNotification::FloatingPaneVisibilityChanged { .. }
+                        | mux::MuxNotification::ActiveFloatingPaneChanged { .. }
+                ) {
+                    *capture.lock().unwrap() += 1;
+                }
+                true
+            });
+
+            for (pane, remote_id, visible) in [
+                (&normal, 100, false),
+                (&floating, 200, true),
+                (&normal, 100, false),
+            ] {
+                block_on(
+                    pane.process_unilateral(Pdu::PaneFocused(PaneFocused { pane_id: remote_id })),
+                )
+                .unwrap();
+                drain();
+                assert_eq!(tab.floating_pane_is_visible(), visible);
+                assert_eq!(
+                    *state_echoes.lock().unwrap(),
+                    0,
+                    "remote focus emitted local floating-state requests"
+                );
+                let mut echoed = Vec::new();
+                while let Ok(request) = requests.try_recv() {
+                    if let ReaderMessage::SendPdu {
+                        pdu: Pdu::SetFocusedPane(focus),
+                        ..
+                    } = request
+                    {
+                        echoed.push(focus.pane_id);
+                    }
+                }
+                assert!(
+                    echoed.is_empty(),
+                    "remote focus echoed as outgoing requests: {:?}",
+                    echoed
+                );
+            }
+
+            tab.set_active_pane(&(floating.clone() as Arc<dyn Pane>));
+            drain();
+            let mut local = Vec::new();
+            while let Ok(request) = requests.try_recv() {
+                if let ReaderMessage::SendPdu {
+                    pdu: Pdu::SetFocusedPane(focus),
+                    ..
+                } = request
+                {
+                    local.push(focus.pane_id);
+                }
+            }
+            assert_eq!(local, vec![200], "local focus must still reach the server");
+            assert!(
+                *state_echoes.lock().unwrap() > 0,
+                "local floating-state changes must still reach the server"
+            );
+            // Release pane-owned tasks on the thread that created them.
+            Mux::shutdown();
+        }
+        drain();
+    }
+}
