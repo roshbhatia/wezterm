@@ -1,0 +1,25 @@
+ci/test-mux-render-subscriptions.lua
+  s_796b0b41a96769::t_74bd167432d386 15-74,107-119,131-134,150,191
+ci/test-mux-render-subscriptions.py
+  s_796b0b41a96769::t_fa8dccc7797e86 1,132-133
+wezterm-gui/src/overlay/selector.rs
+  s_796b0b41a96769::t_def31eec0f5e92 128-130
+wezterm-gui/src/termwindow/mod.rs
+  s_796b0b41a96769::t_881926e32cfd83 1381
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "00fb68fd234b09ffb91c48fd2b4eebcc85732f15",
+  "prompts": {},
+  "sessions": {
+    "s_796b0b41a96769": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e530-4adf-7a10-879b-2ed1876f1c1f",
+        "model": "unknown"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
