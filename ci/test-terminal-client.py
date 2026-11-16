@@ -184,6 +184,7 @@ def main():
                 picker = TerminalClient(command + ["tui"], env)
                 clients.append(picker)
                 wait_for(lambda: b"Persistent" in picker.read() and b"panes" in picker.read(), "picker did not appear")
+                wait_for(lambda: b"Ctrl+N" in picker.read() and b"Esc" in picker.read(), "phone picker hid its new-shell or exit shortcut")
                 picker.send(b"\x1b")
                 wait_for(picker.exited, "picker Escape did not exit")
                 assert picker.status == 0

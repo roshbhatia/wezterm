@@ -412,7 +412,7 @@ impl App {
                 &mut state,
             );
             let status = if self.message.is_empty() {
-                "Type to search | arrows select | Enter attach | Ctrl+N new shell | Esc shell"
+                "Enter open | Ctrl+N new | Esc shell | type to search | arrows select"
             } else {
                 &self.message
             };
