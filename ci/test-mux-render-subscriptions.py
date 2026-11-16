@@ -1,4 +1,4 @@
-"""Check that idle mux connections do not receive unsolicited render frames."""
+"""Check mux subscriptions and floating selector focus, sizing, and scrolling."""
 
 import json
 import os
@@ -129,7 +129,8 @@ with tempfile.TemporaryDirectory(prefix="wezterm-render-", dir="/tmp") as state:
                         )
                     print(
                         "GUI receives changing titles and initial OSC user variables; "
-                        "picker stays stable across five open/close cycles"
+                        "picker stays focused and follows floating pane sizes across five "
+                        "open/close cycles; shrinking keeps the selected row visible"
                     )
         finally:
             if gui is not None:

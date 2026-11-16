@@ -125,6 +125,9 @@ impl SelectorState {
                 self.filtered_entries.len().min(max_items + 1),
             );
             self.max_items = max_items;
+            if self.active_idx > self.top_row + max_items {
+                self.top_row = self.active_idx.saturating_sub(max_items);
+            }
         }
 
         let mut changes = vec![

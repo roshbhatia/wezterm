@@ -1378,6 +1378,7 @@ impl TermWindow {
                 MuxNotification::ActiveFloatingPaneChanged { .. } => {}
                 MuxNotification::TabResized(_) => {
                     // Also handled by wezterm-client
+                    self.resize_overlays();
                     self.update_title_post_status();
                 }
                 MuxNotification::TabTitleChanged { .. } => {

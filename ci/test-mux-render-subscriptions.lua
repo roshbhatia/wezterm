@@ -12,6 +12,66 @@ local function after(delay, callback)
 end
 local function exercise_float_focus(window, origin, finished)
   local floating = origin:spawn_floating_pane { width = 48, height = 12 }
+  local function resize_selection()
+    local choices = {}
+    for i = 1, 20 do
+      choices[i] = {
+        id = tostring(i),
+        label = i == 20 and 'Last fixture row' or ('Fixture row ' .. i),
+      }
+    end
+    window:perform_action(
+      w.action.Multiple {
+        w.action.ActivatePaneById(floating:pane_id()),
+        w.action.InputSelector {
+          title = 'Resize regression',
+          scope = 'Pane',
+          choices = choices,
+          action = w.action_callback(function()
+            origin:activate()
+          end),
+        },
+      },
+      floating
+    )
+    after(0.2, function()
+      local moves = {}
+      for _ = 1, 19 do
+        moves[#moves + 1] =
+          w.action.SendKey { key = 'DownArrow', mods = 'NONE' }
+      end
+      window:perform_action(w.action.Multiple(moves), window:active_pane())
+      after(0.1, function()
+        local height = floating:get_dimensions().viewport_rows
+        assert(height > 5, 'resize fixture needs more than five rows')
+        window:perform_action(
+          w.action.AdjustPaneSize { 'Up', height - 5 },
+          floating
+        )
+        after(0.1, function()
+          local displayed = window:active_pane()
+          assert(
+            displayed:get_dimensions().viewport_rows == 5,
+            'picker did not follow float shrink'
+          )
+          assert(
+            displayed:get_lines_as_text():find('Last fixture row', 1, true),
+            'shrinking picker hid the selected row'
+          )
+          window:perform_action(
+            w.action.SendKey { key = 'Escape', mods = 'NONE' },
+            displayed
+          )
+          after(0.1, function()
+            assert(
+              window:mux_window():active_pane():pane_id() == origin:pane_id()
+            )
+            finished()
+          end)
+        end)
+      end)
+    end)
+  end
   local round = 0
   local cycle
   cycle = function()
@@ -44,6 +104,19 @@ local function exercise_float_focus(window, origin, finished)
         )
       )
       local displayed = window:active_pane()
+      local actual = displayed:get_dimensions()
+      local host = floating:get_dimensions()
+      assert(
+        actual.cols == host.cols
+          and actual.viewport_rows == host.viewport_rows,
+        string.format(
+          'picker size %dx%d does not fit float %dx%d',
+          actual.cols,
+          actual.viewport_rows,
+          host.cols,
+          host.viewport_rows
+        )
+      )
       assert(
         displayed:pane_id() ~= floating:pane_id()
           and displayed:get_lines_as_text():find('Fixture row', 1, true),
@@ -55,6 +128,10 @@ local function exercise_float_focus(window, origin, finished)
       )
       samples = samples + 1
       if samples < 4 then
+        local resize = samples == 1 and { 'Left', 3 }
+          or samples == 2 and { 'Right', 3 }
+          or { 'Up', 1 }
+        window:perform_action(w.action.AdjustPaneSize(resize), floating)
         after(0.05, check)
         return
       end
@@ -70,7 +147,7 @@ local function exercise_float_focus(window, origin, finished)
         if round < 5 then
           cycle()
         else
-          finished()
+          resize_selection()
         end
       end)
     end
@@ -111,6 +188,7 @@ return {
     { name = 'unix', socket_path = assert(os.getenv 'WEZTERM_TEST_SOCKET') },
   },
   default_domain = 'unix',
+  front_end = 'WebGpu',
   check_for_updates = false,
   automatically_reload_config = false,
 }
