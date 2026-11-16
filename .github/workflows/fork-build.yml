@@ -50,6 +50,7 @@ jobs:
           test -x result/bin/wezterm-gui
           test -x result/bin/wezterm-mux-server
           test -r result/share/wezterm/shaders/cursor-trail.wgsl
+          python3 ci/test-terminal-client.py result/bin/wezterm
           nix path-info --json ./result > nix-${{ matrix.system }}.json
       - name: Publish the main closure
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

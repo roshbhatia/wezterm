@@ -389,14 +389,21 @@ fn client_thread(
     reconnectable: &mut Reconnectable,
     local_domain_id: Option<DomainId>,
     rx: &mut Receiver<ReaderMessage>,
+    events: Option<&Sender<Pdu>>,
 ) -> anyhow::Result<()> {
-    block_on(client_thread_async(reconnectable, local_domain_id, rx))
+    block_on(client_thread_async(
+        reconnectable,
+        local_domain_id,
+        rx,
+        events,
+    ))
 }
 
 async fn client_thread_async(
     reconnectable: &mut Reconnectable,
     local_domain_id: Option<DomainId>,
     rx: &mut Receiver<ReaderMessage>,
+    events: Option<&Sender<Pdu>>,
 ) -> anyhow::Result<()> {
     let mut next_serial = 1u64;
 
@@ -450,6 +457,13 @@ async fn client_thread_async(
                             decoded.pdu.pdu_name()
                         );
                         if decoded.serial == 0 {
+                            if let Some(events) = events {
+                                events
+                                    .send(decoded.pdu)
+                                    .await
+                                    .context("delivering mux event")?;
+                                continue;
+                            }
                             process_unilateral(local_domain_id, decoded)
                                 .context("processing unilateral PDU from server")
                                 .map_err(|e| {
@@ -1099,7 +1113,15 @@ impl Client {
         }
     }
 
-    fn new(local_domain_id: Option<DomainId>, mut reconnectable: Reconnectable) -> Self {
+    fn new(local_domain_id: Option<DomainId>, reconnectable: Reconnectable) -> Self {
+        Self::new_with_events(local_domain_id, reconnectable, None)
+    }
+
+    fn new_with_events(
+        local_domain_id: Option<DomainId>,
+        mut reconnectable: Reconnectable,
+        events: Option<Sender<Pdu>>,
+    ) -> Self {
         let client_domain_config = reconnectable.config.clone();
         let is_reconnectable = reconnectable.reconnectable();
         let is_local = reconnectable.is_local();
@@ -1112,7 +1134,12 @@ impl Client {
 
             let mut backoff = BASE_INTERVAL;
             loop {
-                if let Err(e) = client_thread(&mut reconnectable, local_domain_id, &mut receiver) {
+                if let Err(e) = client_thread(
+                    &mut reconnectable,
+                    local_domain_id,
+                    &mut receiver,
+                    events.as_ref(),
+                ) {
                     if !reconnectable.reconnectable() || local_domain_id.is_none() {
                         log::debug!("client thread ended: {}", e);
                         break;
@@ -1337,6 +1364,23 @@ impl Client {
             Reconnectable::new(ClientDomainConfig::Unix(unix_dom.clone()), None);
         reconnectable.connect(initial, ui, no_auto_start)?;
         Ok(Self::new(local_domain_id, reconnectable))
+    }
+
+    /// Connect a terminal frontend and deliver serial-zero messages in order.
+    pub fn new_unix_domain_with_events(
+        unix_dom: &UnixDomain,
+        ui: &mut ConnectionUI,
+        no_auto_start: bool,
+    ) -> anyhow::Result<(Self, Receiver<Pdu>)> {
+        let mut reconnectable =
+            Reconnectable::new(ClientDomainConfig::Unix(unix_dom.clone()), None);
+        reconnectable.connect(true, ui, no_auto_start)?;
+        let (tx, rx) = unbounded();
+        Ok((Self::new_with_events(None, reconnectable, Some(tx)), rx))
+    }
+
+    pub fn default_unix_domain(prefer_mux: bool, class_name: &str) -> anyhow::Result<UnixDomain> {
+        Self::compute_unix_domain(prefer_mux, class_name)
     }
 
     pub fn new_tls(
