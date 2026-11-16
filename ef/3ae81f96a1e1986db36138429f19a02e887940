@@ -1,0 +1,47 @@
+wezterm-gui/src/frontend.rs
+  s_796b0b41a96769::t_e5ecc21f482739 83-94
+ci/test-mux-render-subscriptions.py
+  s_796b0b41a96769::t_20740520149bdc 108-109
+  s_796b0b41a96769::t_c4f973108182d3 117,120
+  s_796b0b41a96769::t_f35db21e656a50 130-133
+  s_796b0b41a96769::t_9616a04b9e8199 118
+  s_796b0b41a96769::t_f318ca16bfe5ba 125-126
+wezterm-client/src/pane/clientpane.rs
+  s_796b0b41a96769::t_26748e4a3bb594 259-270
+  s_796b0b41a96769::t_dbaa391cc1f4dc 241-246
+.github/workflows/fork-build.yml
+  s_796b0b41a96769::t_9616a04b9e8199 54-56
+ci/test-mux-render-subscriptions.lua
+  s_796b0b41a96769::t_9616a04b9e8199 13-37,45,47,55-57,59-64,66-76,78,86,100-105
+  s_796b0b41a96769::t_c4f973108182d3 3-12,58,65,77,88,95
+  s_796b0b41a96769::t_8a0bd0ef1a1be6 46,48
+  s_796b0b41a96769::t_21405b8095f757 49
+  s_796b0b41a96769::t_f35db21e656a50 79-85
+  s_796b0b41a96769::t_236161916a670a 38-44,50-54
+wezterm-client/src/client.rs
+  s_796b0b41a96769::t_65bfdc8b2a5049 1569-1573
+  s_796b0b41a96769::t_face4b03a03220 1493-1508,1548,1550-1551,1595
+  s_796b0b41a96769::t_26748e4a3bb594 1589-1592
+  s_796b0b41a96769::t_2a0dd96149c2d9 1528,1552,1577
+  s_796b0b41a96769::t_f2396b98b8c4e0 1520
+  s_796b0b41a96769::t_7d9aea92be532b 1593
+  s_796b0b41a96769::t_47b283e241d29c 1594,1596
+  s_796b0b41a96769::t_f0c7ac4c5c4307 1530-1541,1554-1558
+  s_796b0b41a96769::t_0a27eb27e3e499 1480-1492,1509-1519,1521-1527,1529,1542-1547,1553,1559-1568,1574-1576,1578-1588,1597-1598
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ef3ae81f96a1e1986db36138429f19a02e887940",
+  "prompts": {},
+  "sessions": {
+    "s_796b0b41a96769": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e530-4adf-7a10-879b-2ed1876f1c1f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
