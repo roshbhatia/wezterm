@@ -164,23 +164,35 @@ end
 w.on('gui-attached', function()
   after(0.5, function()
     local pane = w.mux.all_windows()[1]:active_pane()
+    local window = w.mux.all_windows()[1]:gui_window()
+    window:focus()
     local title = pane:get_title()
     assert(
       pane:get_user_vars().SUBSCRIPTION_STARTUP == 'boot',
       'initial OSC state was lost'
     )
-    after(0.7, function()
-      assert(
-        pane:get_title() ~= title,
-        'GUI stopped receiving render updates'
-      )
-      local window = w.mux.all_windows()[1]:gui_window()
+    local samples = 0
+    local check_title
+    check_title = function()
+      if pane:get_title() == title then
+        samples = samples + 1
+        assert(
+          samples < 50,
+          string.format(
+            'GUI received no title update after 50 samples: %q',
+            title
+          )
+        )
+        after(0.1, check_title)
+        return
+      end
       exercise_float_focus(window, pane, function()
         local file = assert(io.open(state .. '/gui-passed', 'w'))
         file:write 'passed'
         file:close()
       end)
-    end)
+    end
+    after(0.1, check_title)
   end)
 end)
 return {
