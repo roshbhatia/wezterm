@@ -1,0 +1,37 @@
+config/src/config.rs
+  s_d2d448cefaa2bf::t_c59b01415bcc5d 52-79,82-84
+docs/cli/tui.md
+  s_dfcfe20c6e3594::t_42d618a8a6b1e6 3-43,56
+wezterm/src/main.rs
+  s_d2d448cefaa2bf::t_713802a12a4a88 21,130-132,749-760,779
+wezterm/src/remote.rs
+  s_dfcfe20c6e3594::t_28dc0d7fe32aa9 1-170
+wezterm/src/tui.rs
+  s_d2d448cefaa2bf::t_a7e590e34d6660 44-45,49-65,85-86,97-100,117-119,127-131,203-205,221-223,273,341-358,404-414,432,434,463,469,479,492,638-659,691
+wezterm/tests/remote_sessions.rs
+  s_d2d448cefaa2bf::t_d640a19d28a8e2 1-317
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d8602cfd43acfce8ccecfa702c1b6ed383c89f2",
+  "prompts": {},
+  "sessions": {
+    "s_d2d448cefaa2bf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb81-5b2b-78b2-84fd-673be95ed315",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    },
+    "s_dfcfe20c6e3594": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1ea52-5930-7a71-9fa2-501aefed6886",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
