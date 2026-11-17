@@ -1,0 +1,20 @@
+.github/workflows/verify-pages.yml
+  s_796b0b41a96769::t_1ce08ac9990b51 3-5,39-40
+  s_796b0b41a96769::t_a8236b6e5e066f 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5e175522f6066142e2fcfccb8b5fc5bccc3cda30",
+  "prompts": {},
+  "sessions": {
+    "s_796b0b41a96769": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e530-4adf-7a10-879b-2ed1876f1c1f",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
