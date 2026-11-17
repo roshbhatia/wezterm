@@ -18,6 +18,7 @@ use wezterm_gui_subcommands::*;
 
 mod asciicast;
 mod cli;
+mod remote;
 mod tui;
 
 //    let message = "; ❤ 😍🤢\n\x1b[91;mw00t\n\x1b[37;104;m bleet\x1b[0;m.";
@@ -125,6 +126,9 @@ enum SubCommand {
         about = "Attach to persistent mux panes from any terminal"
     )]
     Tui(tui::TuiCommand),
+
+    #[command(about = "List or attach named persistent terminal sessions")]
+    Remote(remote::RemoteCommand),
 
     #[command(name = "imgcat", about = "Output an image to the terminal")]
     ImageCat(ImgCatCommand),
@@ -742,7 +746,18 @@ fn run() -> anyhow::Result<()> {
 
     let saver = UmaskSaver::new();
 
-    let opts = Opt::parse();
+    let mut arguments: Vec<OsString> = std::env::args_os().collect();
+    if arguments.first().is_some_and(|name| {
+        std::path::Path::new(name).file_name() == Some(std::ffi::OsStr::new("wezterm-remote"))
+    }) && arguments.get(1).is_none_or(|argument| {
+        matches!(
+            argument.to_str(),
+            Some("attach" | "list" | "ui" | "--help" | "-h")
+        )
+    }) {
+        arguments.insert(1, OsString::from("remote"));
+    }
+    let opts = Opt::parse_from(arguments);
 
     match opts
         .cmd
@@ -761,6 +776,7 @@ fn run() -> anyhow::Result<()> {
         SubCommand::SetCwd(cmd) => cmd.run(),
         SubCommand::Cli(cli) => cli::run_cli(&opts, cli),
         SubCommand::Tui(cmd) => cmd.run(&opts),
+        SubCommand::Remote(cmd) => cmd.run(&opts),
         SubCommand::Record(cmd) => cmd.run(init_config(&opts)?),
         SubCommand::Replay(cmd) => cmd.run(),
         SubCommand::ShellCompletion { shell } => {

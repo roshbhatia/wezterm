@@ -41,9 +41,28 @@ pub struct TuiCommand {
     /// Start the configured mux server if its socket is unavailable.
     #[arg(long)]
     start_server: bool,
+    #[arg(skip)]
+    direct: bool,
 }
 
 impl TuiCommand {
+    pub(crate) fn picker() -> Self {
+        Self {
+            pane_id: None,
+            read_only: false,
+            start_server: false,
+            direct: false,
+        }
+    }
+
+    pub(crate) fn direct(pane_id: usize) -> Self {
+        Self {
+            pane_id: Some(pane_id),
+            direct: true,
+            ..Self::picker()
+        }
+    }
+
     pub fn run(self, opts: &crate::Opt) -> anyhow::Result<()> {
         if !io::stdin().is_terminal() || !io::stdout().is_terminal() {
             bail!("wezterm tui requires an interactive terminal (use ssh -t)");
@@ -63,6 +82,8 @@ impl TuiCommand {
             )?;
         client.verify_version_compat(&ui).await?;
         let mut app = App::new(client, events, self.read_only);
+        app.show_ui = !self.direct;
+        app.resize_session = self.direct;
         app.refresh().await?;
         if let Some(id) = self.pane_id {
             let entry = app
@@ -72,6 +93,10 @@ impl TuiCommand {
                 .cloned()
                 .with_context(|| format!("pane {id} does not exist in this mux"))?;
             app.attach(entry).await?;
+        }
+        if self.direct {
+            let (cols, rows) = ratatui::crossterm::terminal::size()?;
+            app.resize(cols, rows).await?;
         }
 
         let _restore = RestoreTerminal;
@@ -89,6 +114,9 @@ impl TuiCommand {
             if app.events.is_closed() {
                 bail!("mux disconnected; the pane may have ended or the mux restarted. Reconnect through the picker; input was not replayed");
             }
+            if self.direct && app.screen.is_none() {
+                return Ok(());
+            }
             if app.screen.is_none() && last_refresh.elapsed() >= Duration::from_secs(2) {
                 app.refresh().await?;
                 last_refresh = Instant::now();
@@ -96,8 +124,11 @@ impl TuiCommand {
             }
             if needs_draw {
                 let size = terminal.size()?;
-                app.fetch_view(size.width, size.height.saturating_sub(1))
-                    .await?;
+                app.fetch_view(
+                    size.width,
+                    size.height.saturating_sub(u16::from(app.show_ui)),
+                )
+                .await?;
                 terminal.draw(|frame| app.draw(frame))?;
                 needs_draw = false;
             }
@@ -169,6 +200,9 @@ struct App {
     menu: bool,
     menu_selected: usize,
     message: String,
+    show_ui: bool,
+    resize_session: bool,
+    palette: ColorPalette,
 }
 
 impl App {
@@ -184,6 +218,9 @@ impl App {
             menu: false,
             menu_selected: 0,
             message: String::new(),
+            show_ui: true,
+            resize_session: false,
+            palette: config::configuration().resolved_palette.clone().into(),
         }
     }
 
@@ -233,7 +270,7 @@ impl App {
             dimensions: info.dimensions,
             cursor: info.cursor_position,
             lines: BTreeMap::new(),
-            palette: ColorPalette::default(),
+            palette: self.palette.clone(),
             history_top: None,
         });
         self.client
@@ -301,7 +338,24 @@ impl App {
 
     fn draw(&self, frame: &mut Frame) {
         let area = frame.area();
-        let body = Rect::new(area.x, area.y, area.width, area.height.saturating_sub(1));
+        let palette = self
+            .screen
+            .as_ref()
+            .map(|screen| &screen.palette)
+            .unwrap_or(&self.palette);
+        let normal = Style::default()
+            .fg(rgb(palette.foreground))
+            .bg(rgb(palette.background));
+        let selected = Style::default()
+            .fg(rgb(palette.selection_fg))
+            .bg(rgb(palette.selection_bg));
+        frame.render_widget(Block::default().style(normal), area);
+        let body = Rect::new(
+            area.x,
+            area.y,
+            area.width,
+            area.height.saturating_sub(u16::from(self.show_ui)),
+        );
         if let Some(screen) = &self.screen {
             let (left, top) = screen.view_origin(body.width, body.height);
             frame.render_widget(
@@ -347,15 +401,17 @@ impl App {
                     self.client.client_id.hostname
                 )
             };
-            frame.render_widget(
-                Paragraph::new(status).style(Style::default().fg(Color::Black).bg(Color::Cyan)),
-                Rect::new(
-                    area.x,
-                    area.y + area.height.saturating_sub(1),
-                    area.width,
-                    u16::from(area.height > 0),
-                ),
-            );
+            if self.show_ui || screen.history_top.is_some() {
+                frame.render_widget(
+                    Paragraph::new(status).style(selected),
+                    Rect::new(
+                        area.x,
+                        area.y + area.height.saturating_sub(1),
+                        area.width,
+                        u16::from(area.height > 0),
+                    ),
+                );
+            }
             if self.menu {
                 let menu = Rect::new(body.x, body.y, body.width.min(48), body.height.min(7));
                 frame.render_widget(Clear, menu);
@@ -373,8 +429,9 @@ impl App {
                 let mut state = ListState::default().with_selected(Some(self.menu_selected));
                 frame.render_stateful_widget(
                     List::new(items)
+                        .style(normal)
                         .block(Block::default().borders(Borders::ALL).title("Controls"))
-                        .highlight_style(Style::default().bg(Color::Blue)),
+                        .highlight_style(selected),
                     menu,
                     &mut state,
                 );
@@ -403,12 +460,13 @@ impl App {
             });
             frame.render_stateful_widget(
                 List::new(items)
+                    .style(normal)
                     .block(
                         Block::default()
                             .borders(Borders::ALL)
                             .title(format!("Persistent panes | {}", self.query)),
                     )
-                    .highlight_style(Style::default().bg(Color::Blue)),
+                    .highlight_style(selected),
                 body,
                 &mut state,
             );
@@ -418,7 +476,7 @@ impl App {
                 &self.message
             };
             frame.render_widget(
-                Paragraph::new(status),
+                Paragraph::new(status).style(normal),
                 Rect::new(
                     area.x,
                     area.y + area.height.saturating_sub(1),
@@ -431,7 +489,7 @@ impl App {
 
     async fn handle(&mut self, event: Event) -> anyhow::Result<bool> {
         match event {
-            Event::Resize(_, _) => {}
+            Event::Resize(cols, rows) => self.resize(cols, rows).await?,
             Event::Paste(text) => {
                 if self.screen.is_none() {
                     self.query.push_str(&text);
@@ -577,6 +635,28 @@ impl App {
         Ok(())
     }
 
+    async fn resize(&mut self, cols: u16, rows: u16) -> anyhow::Result<()> {
+        if self.resize_session {
+            if let Some(screen) = &mut self.screen {
+                self.client
+                    .resize(codec::Resize {
+                        containing_tab_id: screen.entry.tab_id,
+                        pane_id: screen.entry.pane_id,
+                        size: wezterm_term::TerminalSize {
+                            cols: usize::from(cols.max(1)),
+                            rows: usize::from(rows.max(1)),
+                            pixel_width: 0,
+                            pixel_height: 0,
+                            dpi: 96,
+                        },
+                    })
+                    .await?;
+                screen.lines.clear();
+            }
+        }
+        Ok(())
+    }
+
     async fn new_shell(&mut self) -> anyhow::Result<()> {
         let size = ratatui::crossterm::terminal::size()?;
         let response = self
@@ -608,7 +688,7 @@ impl App {
     }
 }
 
-fn collect_panes(node: PaneNode, result: &mut Vec<PaneEntry>) {
+pub(crate) fn collect_panes(node: PaneNode, result: &mut Vec<PaneEntry>) {
     match node {
         PaneNode::Empty => {}
         PaneNode::Leaf(entry) => result.push(entry),

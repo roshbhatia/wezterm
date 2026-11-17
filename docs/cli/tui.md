@@ -1,5 +1,46 @@
 # Native terminal attachment
 
+The default remote workflow uses named persistent sessions:
+
+```console
+wezterm-remote list
+wezterm-remote attach work
+wezterm-remote attach k9s -- k9s
+```
+
+`attach` reuses the first pane in the named workspace or creates it with the
+requested command. The configured shell is used when no command is supplied.
+An explicit command runs only on creation. Named attachments use the whole
+terminal without a persistent controls bar and resize the session to the current
+terminal dimensions. Control+B followed by `d` detaches without ending the job.
+The most recent attaching or resizing client determines a named session's size.
+
+`list` prints workspace names, pane counts, and titles, then returns to the shell.
+It does not start a missing mux. `attach` starts the configured local mux when
+needed. An SSH disconnect leaves the session running.
+
+Open the optional themed UI explicitly with:
+
+```console
+wezterm-remote ui
+```
+
+Set the no-argument default in the same WezTerm configuration as the mux:
+
+```lua
+config.remote_client = { interface = "cli" } -- or "ui"
+```
+
+The UI uses the resolved WezTerm foreground, background, and selection colors.
+Attached pane colors, including application palette changes, come from the mux.
+The displaying terminal controls its own font. No separate UI palette is needed.
+
+The native commands are `wezterm remote list`, `wezterm remote attach NAME`, and
+`wezterm remote ui`. The `wezterm-remote` wrapper selects the headless configuration;
+native packages can also provide it as a symlink to `wezterm`.
+
+## Shared desktop panes
+
 `wezterm tui` attaches an ordinary terminal to panes in the configured local
 WezTerm mux. It uses Ratatui and the existing mux protocol. An SSH client such as
 Termius does not need to implement the WezTerm protocol.
@@ -12,7 +53,7 @@ wezterm-remote tui
 
 `wezterm-remote` is the sysinit wrapper that selects the persistent mux's
 configuration. Other installations can use `wezterm --config-file FILE tui`.
-Use the same fork revision for the client and mux. The client does not start a
+Use the same fork revision for the client and mux. This UI does not start a
 missing mux unless `--start-server` is specified.
 
 Type to filter the pane picker by workspace, title, directory, or pane ID. Use
