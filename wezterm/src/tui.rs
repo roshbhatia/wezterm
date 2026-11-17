@@ -385,7 +385,8 @@ impl App {
                 .iter()
                 .map(|p| {
                     ListItem::new(format!(
-                        "{} / {}\n  #{}  {}x{}  {}",
+                        "{}{} / {}\n  #{}  {}x{}  {}",
+                        if p.is_floating_pane { "F " } else { "" },
                         p.workspace,
                         p.title,
                         p.pane_id,

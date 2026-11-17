@@ -18,6 +18,7 @@ missing mux unless `--start-server` is specified.
 Type to filter the pane picker by workspace, title, directory, or pane ID. Use
 arrow keys and Enter to attach. Escape returns to the SSH shell. `--pane-id ID`
 attaches directly, and `--read-only` disables application input initially.
+Floating panes carry an `F` prefix, including when their desktop float is hidden.
 
 While attached, Control+B opens the controls menu. Arrow keys and Enter work
 without desktop modifiers. The menu also accepts these keys:
