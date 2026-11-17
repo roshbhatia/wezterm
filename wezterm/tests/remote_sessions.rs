@@ -51,6 +51,8 @@ impl Terminal {
         command.args(["--config-file", config.to_str().unwrap()]);
         command.args(arguments);
         command.env("WEZTERM_UNIX_SOCKET", socket);
+        command.env("HOME", config.parent().unwrap());
+        command.env("XDG_CACHE_HOME", config.parent().unwrap());
         command.env("TERM", "xterm-256color");
         command.env_remove("NO_COLOR");
         command.env("COLORTERM", "truecolor");
@@ -130,6 +132,8 @@ fn run(binary: &Path, config: &Path, socket: &Path, arguments: &[&str]) -> std::
         .args(["--config-file", config.to_str().unwrap()])
         .args(arguments)
         .env("WEZTERM_UNIX_SOCKET", socket)
+        .env("HOME", config.parent().unwrap())
+        .env("XDG_CACHE_HOME", config.parent().unwrap())
         .output()
         .unwrap()
 }
@@ -186,15 +190,25 @@ fn named_sessions_survive_detach_and_use_the_configured_palette() {
     assert!(!invalid.status.success());
     assert!(!socket.exists(), "invalid input started a mux");
 
-    let _server = Server(
+    let server_log = temporary.path().join("server.log");
+    let mut server = Server(
         Command::new(server_binary)
             .args(["--config-file", config.to_str().unwrap()])
+            .env("HOME", temporary.path())
+            .env("XDG_CACHE_HOME", temporary.path())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(std::fs::File::create(&server_log).unwrap())
             .spawn()
             .unwrap(),
     );
-    until(|| socket.exists());
+    until(|| {
+        assert!(
+            server.0.try_wait().unwrap().is_none(),
+            "mux exited before listening: {}",
+            std::fs::read_to_string(&server_log).unwrap()
+        );
+        socket.exists()
+    });
     let mut attached = Terminal::spawn(
         &binary,
         &config,
@@ -204,7 +218,7 @@ fn named_sessions_survive_detach_and_use_the_configured_palette() {
             "attach",
             "integration",
             "--",
-            "/bin/sh",
+            "sh",
             "-c",
             "stty raw -echo; printf 'named-session-ready\\r\\n'; cat",
         ],
@@ -231,6 +245,8 @@ fn named_sessions_survive_detach_and_use_the_configured_palette() {
             "json",
         ])
         .env_remove("WEZTERM_UNIX_SOCKET")
+        .env("HOME", temporary.path())
+        .env("XDG_CACHE_HOME", temporary.path())
         .output()
         .unwrap();
     assert!(
@@ -323,7 +339,7 @@ fn named_sessions_survive_detach_and_use_the_configured_palette() {
         .success());
     std::fs::write(&config, original_config).unwrap();
 
-    drop(_server);
+    drop(server);
     let _daemon = Daemon(pid_file);
     let mut autostarted = Terminal::spawn(
         &binary,
@@ -334,7 +350,7 @@ fn named_sessions_survive_detach_and_use_the_configured_palette() {
             "attach",
             "autostart",
             "--",
-            "/bin/sh",
+            "sh",
             "-c",
             "stty raw -echo; printf 'autostart-ready\\r\\n'; cat",
         ],
