@@ -1,4 +1,4 @@
-"""Check that idle mux connections do not receive unsolicited render frames."""
+"""Check mux subscriptions and floating selector focus, sizing, and scrolling."""
 
 import json
 import os
@@ -105,6 +105,8 @@ with tempfile.TemporaryDirectory(prefix="wezterm-render-", dir="/tmp") as state:
                             "--config-file",
                             str(Path(__file__).with_suffix(".lua").resolve()),
                             "connect",
+                            "--class",
+                            "org.wezfurlong.wezterm.focus-regression",
                             "unix",
                         ],
                         env=env,
@@ -112,17 +114,24 @@ with tempfile.TemporaryDirectory(prefix="wezterm-render-", dir="/tmp") as state:
                         stderr=gui_log,
                     )
                     marker = root / "gui-passed"
-                    deadline = time.monotonic() + 7
+                    failure = root / "gui-failed"
+                    deadline = time.monotonic() + 15
                     while not marker.exists() and time.monotonic() < deadline:
-                        if gui.poll() is not None:
+                        if gui.poll() is not None or failure.exists():
                             break
                         time.sleep(0.1)
                     if not marker.exists():
                         gui_log.seek(0)
+                        if failure.exists():
+                            raise RuntimeError(failure.read_text() + "\n" + gui_log.read())
                         raise RuntimeError(
                             gui_log.read() or "GUI subscriber did not receive updates"
                         )
-                    print("GUI receives changing titles and initial OSC user variables")
+                    print(
+                        "GUI receives changing titles and initial OSC user variables; "
+                        "picker stays focused and follows floating pane sizes across five "
+                        "open/close cycles; shrinking keeps the selected row visible"
+                    )
         finally:
             if gui is not None:
                 gui.terminate()

@@ -101,6 +101,8 @@
         {
           packages.default = rustPlatform.buildRustPackage (finalAttrs: {
             inherit buildInputs nativeBuildInputs;
+            # Tests share the process-global mux and task schedulers.
+            dontUseCargoParallelTests = true;
 
             pname = "wezterm";
             src = ./..;
