@@ -217,6 +217,33 @@ fn named_sessions_survive_detach_and_use_the_configured_palette() {
     let original = panes(&binary, &config, &socket);
     assert_eq!(original.len(), 1);
     assert_eq!(original[0]["workspace"], "integration");
+    let remote_alias = temporary.path().join("wezterm-remote");
+    std::os::unix::fs::symlink(&binary, &remote_alias).unwrap();
+    let native_cli = Command::new(&remote_alias)
+        .args([
+            "--config-file",
+            config.to_str().unwrap(),
+            "cli",
+            "--no-auto-start",
+            "--prefer-mux",
+            "list",
+            "--format",
+            "json",
+        ])
+        .env_remove("WEZTERM_UNIX_SOCKET")
+        .output()
+        .unwrap();
+    assert!(
+        native_cli.status.success(),
+        "{}",
+        String::from_utf8_lossy(&native_cli.stderr)
+    );
+    assert_eq!(
+        serde_json::from_slice::<Vec<serde_json::Value>>(&native_cli.stdout)
+            .unwrap()
+            .len(),
+        1
+    );
     let pane_id = original[0]["pane_id"].clone();
     attached
         .master

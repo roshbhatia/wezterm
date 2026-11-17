@@ -747,17 +747,24 @@ fn run() -> anyhow::Result<()> {
     let saver = UmaskSaver::new();
 
     let mut arguments: Vec<OsString> = std::env::args_os().collect();
-    if arguments.first().is_some_and(|name| {
+    let remote_alias = arguments.first().is_some_and(|name| {
         std::path::Path::new(name).file_name() == Some(std::ffi::OsStr::new("wezterm-remote"))
-    }) && arguments.get(1).is_none_or(|argument| {
-        matches!(
-            argument.to_str(),
-            Some("attach" | "list" | "ui" | "--help" | "-h")
-        )
-    }) {
+    });
+    if remote_alias
+        && arguments.get(1).is_none_or(|argument| {
+            matches!(
+                argument.to_str(),
+                Some("attach" | "list" | "ui" | "--help" | "-h")
+            )
+        })
+    {
         arguments.insert(1, OsString::from("remote"));
     }
     let opts = Opt::parse_from(arguments);
+    if remote_alias && matches!(&opts.cmd, Some(SubCommand::Cli(_))) {
+        init_config(&opts)?;
+        config::configuration_result()?;
+    }
 
     match opts
         .cmd
