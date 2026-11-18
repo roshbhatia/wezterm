@@ -91,6 +91,7 @@ local function exercise_float_focus(window, origin, finished)
       floating
     )
     local samples = 0
+    local geometry_attempts = 0
     local check
     check = function()
       assert(
@@ -106,6 +107,16 @@ local function exercise_float_focus(window, origin, finished)
       local displayed = window:active_pane()
       local actual = displayed:get_dimensions()
       local host = floating:get_dimensions()
+      if
+        (
+          actual.cols ~= host.cols
+          or actual.viewport_rows ~= host.viewport_rows
+        ) and geometry_attempts < 20
+      then
+        geometry_attempts = geometry_attempts + 1
+        after(0.05, check)
+        return
+      end
       assert(
         actual.cols == host.cols
           and actual.viewport_rows == host.viewport_rows,
@@ -117,6 +128,7 @@ local function exercise_float_focus(window, origin, finished)
           host.viewport_rows
         )
       )
+      geometry_attempts = 0
       assert(
         displayed:pane_id() ~= floating:pane_id()
           and displayed:get_lines_as_text():find('Fixture row', 1, true),
