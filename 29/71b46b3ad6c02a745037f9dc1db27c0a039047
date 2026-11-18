@@ -1,0 +1,19 @@
+ci/test-mux-render-subscriptions.lua
+  s_d2d448cefaa2bf::t_59f0e4414d8ad2 94,110-119,131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2971b46b3ad6c02a745037f9dc1db27c0a039047",
+  "prompts": {},
+  "sessions": {
+    "s_d2d448cefaa2bf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb81-5b2b-78b2-84fd-673be95ed315",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
