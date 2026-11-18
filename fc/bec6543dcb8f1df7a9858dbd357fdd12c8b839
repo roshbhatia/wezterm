@@ -1,0 +1,21 @@
+ci/test-terminal-client.py
+  s_d2d448cefaa2bf::t_cba4ddf7f62247 198
+wezterm/src/tui.rs
+  s_d2d448cefaa2bf::t_cba4ddf7f62247 676
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fcbec6543dcb8f1df7a9858dbd357fdd12c8b839",
+  "prompts": {},
+  "sessions": {
+    "s_d2d448cefaa2bf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1eb81-5b2b-78b2-84fd-673be95ed315",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
