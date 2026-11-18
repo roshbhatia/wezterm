@@ -195,7 +195,7 @@ def main():
                 mobile.send(b"\x0e")
                 wait_for(lambda: len(panes()) == 2, "new mobile shell was not created")
                 new_pane = next(p for p in panes() if p["pane_id"] != pane_id)
-                assert new_pane["workspace"] == "mobile"
+                assert new_pane["workspace"] == "default"
                 assert new_pane["size"]["cols"] == 39 and new_pane["size"]["rows"] == 13
                 wait_for(lambda: b"native-client-ready" in mobile.read(), "new mobile shell did not attach")
                 mobile.send(b"\x02d")

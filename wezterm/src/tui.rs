@@ -673,7 +673,7 @@ impl App {
                     pixel_height: 0,
                     dpi: 96,
                 },
-                workspace: "mobile".to_owned(),
+                workspace: "default".to_owned(),
             })
             .await?;
         self.refresh().await?;
