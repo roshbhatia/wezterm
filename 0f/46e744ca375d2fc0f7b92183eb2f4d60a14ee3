@@ -1,0 +1,19 @@
+wezterm-gui/src/termwindow/palette.rs
+  s_a4a3eea4720821::t_0c1c77db59defa 97-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0f46e744ca375d2fc0f7b92183eb2f4d60a14ee3",
+  "prompts": {},
+  "sessions": {
+    "s_a4a3eea4720821": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f4ef-68fa-7c11-b609-3f16bf1d9bf7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": null
+    }
+  }
+}
