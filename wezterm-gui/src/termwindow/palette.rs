@@ -94,6 +94,17 @@ fn build_commands(
     filter_copy_mode: bool,
 ) -> Vec<ExpandedCommand> {
     let mut commands = CommandDef::actions_for_palette_and_menubar(&config::configuration());
+    // Low-level keybinding actions need an explicit palette entry to be useful here.
+    commands.retain(|cmd| {
+        !matches!(
+            cmd.action,
+            KeyAssignment::EmitEvent(_)
+                | KeyAssignment::Multiple(_)
+                | KeyAssignment::Nop
+                | KeyAssignment::SendKey(_)
+                | KeyAssignment::SendString(_)
+        )
+    });
 
     match config::run_immediate_with_lua_config(|lua| {
         let mut entries: Vec<UserPaletteEntry> = vec![];
