@@ -402,7 +402,12 @@ impl Pane for LocalPane {
         if self.tmux_domain.lock().is_some() {
             log::trace!("key: {:?}", key);
             if key == KeyCode::Char('q') {
-                self.terminal.lock().send_paste("detach\n")?;
+                let domain = self.tmux_domain.lock().clone();
+                if let Some(domain) =
+                    domain.and_then(|domain| Mux::get().get_domain(domain.domain_id))
+                {
+                    domain.detach()?;
+                }
             }
             return Ok(());
         } else {
@@ -853,6 +858,26 @@ struct LocalPaneDCSHandler {
     tmux_domain: Option<Arc<TmuxDomainState>>,
 }
 
+impl LocalPane {
+    pub(crate) fn clear_tmux_domain(&self, domain_id: DomainId) {
+        let mut domain = self.tmux_domain.lock();
+        if domain
+            .as_ref()
+            .is_some_and(|domain| domain.domain_id == domain_id)
+        {
+            domain.take();
+        }
+    }
+}
+
+impl Drop for LocalPaneDCSHandler {
+    fn drop(&mut self) {
+        if let Some(tmux) = self.tmux_domain.take() {
+            tmux.disconnected();
+        }
+    }
+}
+
 pub(crate) fn emit_output_for_pane(pane_id: PaneId, message: &str) {
     let mut parser = termwiz::escape::parser::Parser::new();
     let mut actions = vec![Action::CSI(CSI::Sgr(Sgr::Reset))];
@@ -908,12 +933,7 @@ impl wezterm_term::DeviceControlHandler for LocalPaneDCSHandler {
             }
             DeviceControlMode::Exit => {
                 if let Some(tmux) = self.tmux_domain.take() {
-                    let mux = Mux::get();
-                    if let Some(pane) = mux.get_pane(self.pane_id) {
-                        let pane = pane.downcast_ref::<LocalPane>().unwrap();
-                        pane.tmux_domain.lock().take();
-                    }
-                    mux.domain_was_detached(tmux.domain_id);
+                    tmux.disconnected();
                 }
             }
             DeviceControlMode::Data(c) => {

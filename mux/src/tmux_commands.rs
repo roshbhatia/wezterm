@@ -20,6 +20,31 @@ use wezterm_term::TerminalSize;
 pub(crate) trait TmuxCommand: Send + Debug {
     fn get_command(&self, domain_id: DomainId) -> String;
     fn process_result(&self, domain_id: DomainId, result: &Guarded) -> anyhow::Result<()>;
+    fn cancel(&self) {}
+}
+
+pub(crate) struct CommandReply<T>(Mutex<promise::Promise<T>>);
+
+impl<T> Debug for CommandReply<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("CommandReply")
+    }
+}
+
+impl<T> CommandReply<T> {
+    pub fn new() -> (Self, promise::Future<T>) {
+        let mut promise = promise::Promise::new();
+        let future = promise.get_future().unwrap();
+        (Self(Mutex::new(promise)), future)
+    }
+
+    fn result(&self, result: anyhow::Result<T>) {
+        self.0.lock().result(result);
+    }
+
+    fn cancel(&self) {
+        self.result(Err(anyhow!("tmux client detached during command")));
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -59,11 +84,6 @@ impl TmuxDomainState {
         };
 
         return local_tab.panes.get(&pane_id).is_some();
-    }
-
-    pub fn check_window_attached(&self, window_id: TmuxWindowId) -> bool {
-        let gui_tabs = self.gui_tabs.lock();
-        return gui_tabs.get(&window_id).is_some();
     }
 
     /// after we create a tab for a remote pane, save its ID into the
@@ -113,46 +133,48 @@ impl TmuxDomainState {
         window_id: TmuxWindowId,
         new_set: &HashSet<TmuxPaneId>,
     ) -> anyhow::Result<()> {
-        let mut gui_tabs = self.gui_tabs.lock();
-
-        let (tab_id, panes) = match gui_tabs.get_mut(&window_id) {
-            Some(tab) => (tab.tab_id, &mut tab.panes),
-            None => anyhow::bail!("The window {window_id} is not attached"),
+        let (tab_id, to_remove, empty) = {
+            let mut gui_tabs = self.gui_tabs.lock();
+            let tab = gui_tabs
+                .get_mut(&window_id)
+                .context("tmux window detached")?;
+            let to_remove: Vec<_> = tab.panes.difference(new_set).copied().collect();
+            tab.panes.retain(|pane| new_set.contains(pane));
+            (tab.tab_id, to_remove, tab.panes.is_empty())
         };
-
-        let to_remove: Vec<_> = panes.difference(new_set).cloned().collect();
-
         let mux = Mux::get();
-        for p in to_remove {
-            let pane_map = self.remote_panes.lock();
-            let Some(pane) = pane_map.get(&p) else {
-                continue;
-            };
-            let local_pane_id = pane.lock().local_pane_id;
-            mux.remove_pane(local_pane_id);
-            panes.remove(&p);
+        for pane_id in to_remove {
+            let pane = self.remote_panes.lock().remove(&pane_id);
+            if let Some(pane) = pane {
+                let local = {
+                    let pane = pane.lock();
+                    pane.release();
+                    pane.local_pane_id
+                };
+                mux.remove_pane(local);
+            }
         }
 
-        if panes.is_empty() {
+        if empty {
+            self.gui_tabs.lock().remove(&window_id);
             mux.remove_tab(tab_id);
-            gui_tabs.remove(&window_id);
         }
 
         Ok(())
     }
 
     pub fn remove_detached_window(&self, window_id: TmuxWindowId) -> anyhow::Result<()> {
-        let mut gui_tabs = self.gui_tabs.lock();
-        let tab = match gui_tabs.get(&window_id) {
-            Some(x) => x,
-            None => {
-                anyhow::bail!("Cannot find the window {window_id}")
+        let tab = self
+            .gui_tabs
+            .lock()
+            .remove(&window_id)
+            .context("tmux window detached")?;
+        for pane_id in tab.panes {
+            if let Some(pane) = self.remote_panes.lock().remove(&pane_id) {
+                pane.lock().release();
             }
-        };
-
-        let mux = Mux::get();
-        mux.remove_tab(tab.tab_id);
-        gui_tabs.remove(&window_id);
+        }
+        Mux::get().remove_tab(tab.tab_id);
 
         Ok(())
     }
@@ -209,6 +231,10 @@ impl TmuxDomainState {
 
         let child = TmuxChild {
             active_lock: active_lock.clone(),
+            domain_id: self.domain_id,
+            pane_id: pane.pane_id,
+            cmd_queue: self.cmd_queue.clone(),
+            kill_requested: Default::default(),
         };
 
         let terminal = wezterm_term::Terminal::new(
@@ -238,6 +264,11 @@ impl TmuxDomainState {
         split_request: SplitRequest,
     ) -> anyhow::Result<Arc<dyn Pane>> {
         let mux = Mux::get();
+        if let Some(existing) = self.remote_panes.lock().get(&remote_id) {
+            return mux
+                .get_pane(existing.lock().local_pane_id)
+                .context("tmux split pane closed");
+        }
         let tab = match mux.get_tab(tab_id) {
             Some(t) => t,
             None => anyhow::bail!("Invalid tab id {}", tab_id),
@@ -371,7 +402,9 @@ impl TmuxDomainState {
         };
 
         for window in windows.iter() {
-            if window.session_id != current_session {
+            if window.session_id != current_session
+                || self.gui_tabs.lock().contains_key(&window.window_id)
+            {
                 continue;
             }
 
@@ -766,6 +799,7 @@ impl TmuxCommand for ListAllPanes {
 pub(crate) struct ListAllWindows {
     pub session_id: TmuxSessionId,
     pub window_id: Option<TmuxWindowId>,
+    pub reply: Option<Arc<CommandReply<Arc<Tab>>>>,
 }
 
 impl TmuxCommand for ListAllWindows {
@@ -775,14 +809,43 @@ impl TmuxCommand for ListAllWindows {
                 '#{{session_id}} #{{window_id}} \
                 #{{window_width}} #{{window_height}} \
                 #{{window_active}} \
-                #{{window_name}} \
                 #{{window_layout}} \
-                #{{history_limit}}' -t ${}\n",
+                #{{history_limit}} #{{window_name}}' -t ${}\n",
             self.session_id
         )
     }
 
     fn process_result(&self, domain_id: DomainId, result: &Guarded) -> anyhow::Result<()> {
+        let status = self.sync_windows(domain_id, result);
+        if let Some(reply) = &self.reply {
+            reply.result(status.and_then(|()| {
+                let mux = Mux::get();
+                let domain = mux.get_domain(domain_id).context("tmux client detached")?;
+                let domain = domain
+                    .downcast_ref::<TmuxDomain>()
+                    .context("invalid tmux domain")?;
+                let tabs = domain.inner.gui_tabs.lock();
+                let tab = self
+                    .window_id
+                    .and_then(|id| tabs.get(&id))
+                    .context("tmux window closed")?;
+                mux.get_tab(tab.tab_id).context("tmux tab closed")
+            }));
+            Ok(())
+        } else {
+            status
+        }
+    }
+
+    fn cancel(&self) {
+        if let Some(reply) = &self.reply {
+            reply.cancel();
+        }
+    }
+}
+
+impl ListAllWindows {
+    fn sync_windows(&self, domain_id: DomainId, result: &Guarded) -> anyhow::Result<()> {
         if result.error {
             let error = format!("list-window in domain={domain_id} failed: {result:#?}");
             log::error!("{error}");
@@ -812,10 +875,6 @@ impl TmuxCommand for ListAllWindows {
                 .ok_or_else(|| anyhow!("missing window_active"))?
                 .parse::<usize>()?;
 
-            let window_name = fields
-                .next()
-                .ok_or_else(|| anyhow!("missing window_name"))?;
-
             let window_layout = fields
                 .next()
                 .ok_or_else(|| anyhow!("missing window_layout"))?;
@@ -824,6 +883,7 @@ impl TmuxCommand for ListAllWindows {
                 .next()
                 .ok_or_else(|| anyhow!("missing history_limit"))?
                 .parse::<isize>()?;
+            let window_name = fields.collect::<Vec<_>>().join(" ");
 
             let window_active = window_active == 1;
 
@@ -848,7 +908,7 @@ impl TmuxCommand for ListAllWindows {
                 window_width,
                 window_height,
                 window_active,
-                window_name: window_name.to_string(),
+                window_name,
                 layout,
                 layout_csum: layout_csum.to_string(),
                 history_limit,
@@ -1038,19 +1098,49 @@ impl TmuxCommand for SendKeys {
 }
 
 #[derive(Debug)]
-pub(crate) struct NewWindow;
+pub(crate) struct NewWindow {
+    pub session: TmuxSessionId,
+    pub args: String,
+    pub reply: Arc<CommandReply<Arc<Tab>>>,
+}
 impl TmuxCommand for NewWindow {
     fn get_command(&self, _domain_id: DomainId) -> String {
-        "new-window\n".to_owned()
+        format!(
+            "new-window -P -F '#{{window_id}}' -t '${}:'{}\n",
+            self.session, self.args
+        )
     }
 
     fn process_result(&self, domain_id: DomainId, result: &Guarded) -> anyhow::Result<()> {
-        if result.error {
-            let error = format!("new-window in domain={domain_id} failed: {result:#?}");
-            log::error!("{error}");
-            anyhow::bail!("{error}");
+        let status = (|| -> anyhow::Result<()> {
+            anyhow::ensure!(!result.error, "new-window failed: {}", result.output.trim());
+            let window_id = parse_sigil_number(result.output.trim())?;
+            let domain = Mux::get()
+                .get_domain(domain_id)
+                .context("tmux client detached")?;
+            let domain = domain
+                .downcast_ref::<TmuxDomain>()
+                .context("invalid tmux domain")?;
+            anyhow::ensure!(domain.inner.is_connected(), "tmux client detached");
+            domain
+                .inner
+                .cmd_queue
+                .lock()
+                .push_front(Box::new(ListAllWindows {
+                    session_id: self.session,
+                    window_id: Some(window_id),
+                    reply: Some(self.reply.clone()),
+                }));
+            Ok(())
+        })();
+        if let Err(err) = status {
+            self.reply.result(Err(err));
         }
         Ok(())
+    }
+
+    fn cancel(&self) {
+        self.reply.cancel();
     }
 }
 
@@ -1092,6 +1182,7 @@ impl TmuxCommand for ListCommands {
             cmd_queue.push_back(Box::new(ListAllWindows {
                 session_id: session,
                 window_id: None,
+                reply: None,
             }));
             TmuxDomainState::schedule_send_next_command(domain_id);
         }
@@ -1100,27 +1191,95 @@ impl TmuxCommand for ListCommands {
     }
 }
 
-#[derive(Debug)]
 pub(crate) struct SplitPane {
     pub pane_id: TmuxPaneId,
-    pub direction: SplitDirection,
+    pub request: SplitRequest,
+    pub args: String,
+    pub reply: Mutex<promise::Promise<TmuxPaneId>>,
+}
+
+impl Debug for SplitPane {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SplitPane")
+            .field("pane_id", &self.pane_id)
+            .field("request", &self.request)
+            .finish()
+    }
 }
 
 impl TmuxCommand for SplitPane {
     fn get_command(&self, _domain_id: DomainId) -> String {
-        if self.direction == SplitDirection::Horizontal {
-            format!("split-window -h -t %{}\n", self.pane_id)
+        let direction = if self.request.direction == SplitDirection::Horizontal {
+            "-h"
         } else {
-            format!("split-window -v -t %{}\n", self.pane_id)
-        }
+            "-v"
+        };
+        let before = if self.request.target_is_second {
+            ""
+        } else {
+            " -b"
+        };
+        let full = if self.request.top_level { " -f" } else { "" };
+        let size = match self.request.size {
+            SplitSize::Cells(cells) => cells.to_string(),
+            SplitSize::Percent(percent) => format!("{percent}%"),
+        };
+        format!(
+            "split-window {direction}{before}{full} -l {size} -P -F '#{{pane_id}}' -t %{}{}\n",
+            self.pane_id, self.args
+        )
     }
 
-    fn process_result(&self, domain_id: DomainId, result: &Guarded) -> anyhow::Result<()> {
+    fn process_result(&self, _domain_id: DomainId, result: &Guarded) -> anyhow::Result<()> {
         if result.error {
-            let error = format!("split-window in domain={domain_id} failed: {result:#?}");
-            log::error!("{error}");
-            anyhow::bail!("{error}");
+            self.reply
+                .lock()
+                .err(anyhow!("split-window failed: {}", result.output.trim()));
+        } else {
+            self.reply
+                .lock()
+                .result(parse_sigil_number(result.output.trim()));
         }
+        Ok(())
+    }
+
+    fn cancel(&self) {
+        self.reply
+            .lock()
+            .err(anyhow!("tmux client detached during split"));
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct DetachClient;
+
+impl TmuxCommand for DetachClient {
+    fn get_command(&self, _domain_id: DomainId) -> String {
+        "detach-client\n".into()
+    }
+
+    fn process_result(&self, _domain_id: DomainId, result: &Guarded) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            !result.error,
+            "detach-client failed: {}",
+            result.output.trim()
+        );
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct KillPane {
+    pub pane_id: TmuxPaneId,
+}
+
+impl TmuxCommand for KillPane {
+    fn get_command(&self, _domain_id: DomainId) -> String {
+        format!("kill-pane -t %{}\n", self.pane_id)
+    }
+
+    fn process_result(&self, _domain_id: DomainId, result: &Guarded) -> anyhow::Result<()> {
+        anyhow::ensure!(!result.error, "kill-pane failed: {}", result.output.trim());
         Ok(())
     }
 }

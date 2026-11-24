@@ -779,6 +779,13 @@ impl Mux {
             .insert(domain.domain_name().to_string(), Arc::clone(domain));
     }
 
+    pub(crate) fn remove_tmux_domain(&self, domain_id: DomainId) {
+        self.domains.write().remove(&domain_id);
+        self.domains_by_name
+            .write()
+            .retain(|_, domain| domain.domain_id() != domain_id);
+    }
+
     pub fn set_mux(mux: &Arc<Mux>) {
         MUX.lock().replace(Arc::clone(mux));
     }

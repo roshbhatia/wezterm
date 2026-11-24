@@ -1,10 +1,11 @@
 use crate::tmux::{RefTmuxRemotePane, TmuxCmdQueue, TmuxDomainState};
-use crate::tmux_commands::{Resize, SendKeys};
+use crate::tmux_commands::{KillPane, Resize, SendKeys};
 use crate::DomainId;
 use filedescriptor::FileDescriptor;
 use parking_lot::{Condvar, Mutex};
 use portable_pty::{Child, ChildKiller, ExitStatus, MasterPty};
 use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 /// A local tmux pane(tab) based on a tmux pty
@@ -67,11 +68,15 @@ impl Write for TmuxPty {
 #[derive(Clone, Debug)]
 pub(crate) struct TmuxChild {
     pub active_lock: Arc<(Mutex<bool>, Condvar)>,
+    pub domain_id: DomainId,
+    pub pane_id: u64,
+    pub cmd_queue: Arc<Mutex<TmuxCmdQueue>>,
+    pub kill_requested: Arc<AtomicBool>,
 }
 
 impl Child for TmuxChild {
     fn try_wait(&mut self) -> std::io::Result<Option<portable_pty::ExitStatus>> {
-        todo!()
+        Ok((*self.active_lock.0.lock()).then(|| ExitStatus::with_exit_code(0)))
     }
 
     fn wait(&mut self) -> std::io::Result<portable_pty::ExitStatus> {
@@ -93,32 +98,19 @@ impl Child for TmuxChild {
     }
 }
 
-#[derive(Clone, Debug)]
-struct TmuxChildKiller {}
-
-impl ChildKiller for TmuxChildKiller {
+impl ChildKiller for TmuxChild {
     fn kill(&mut self) -> std::io::Result<()> {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "TmuxChildKiller: kill not implemented!",
-        ))
+        if !*self.active_lock.0.lock() && !self.kill_requested.swap(true, Ordering::Relaxed) {
+            self.cmd_queue.lock().push_back(Box::new(KillPane {
+                pane_id: self.pane_id,
+            }));
+            TmuxDomainState::schedule_send_next_command(self.domain_id);
+        }
+        Ok(())
     }
 
     fn clone_killer(&self) -> Box<dyn ChildKiller + Send + Sync> {
         Box::new(self.clone())
-    }
-}
-
-impl ChildKiller for TmuxChild {
-    fn kill(&mut self) -> std::io::Result<()> {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "TmuxPty: kill not implemented!",
-        ))
-    }
-
-    fn clone_killer(&self) -> Box<dyn ChildKiller + Send + Sync> {
-        Box::new(TmuxChildKiller {})
     }
 }
 
