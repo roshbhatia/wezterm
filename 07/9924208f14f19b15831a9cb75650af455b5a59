@@ -1,0 +1,19 @@
+term/src/test/image.rs
+  s_a4a3eea4720821::t_7b38a07ec22329 232,234,236,238,241,433,460,462-467,491-492,495-496,510-511,531,533
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "079924208f14f19b15831a9cb75650af455b5a59",
+  "prompts": {},
+  "sessions": {
+    "s_a4a3eea4720821": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f4ef-68fa-7c11-b609-3f16bf1d9bf7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
