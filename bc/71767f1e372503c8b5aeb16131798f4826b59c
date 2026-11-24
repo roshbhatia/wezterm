@@ -1,0 +1,27 @@
+term/src/test/image.rs
+  s_a4a3eea4720821::t_4c4a431f09cd1d 226-243
+wezterm-escape-parser/src/apc.rs
+  s_a4a3eea4720821::t_94b3e9d969fc0c 893-896,900
+  s_a4a3eea4720821::t_2add3126c45872 722-724,743-747,752-754,758-760,765-769,783-786,790-793,797-800,825-829,897-899,901
+term/src/terminalstate/kitty.rs
+  s_a4a3eea4720821::t_f598103c31bb8a 112-123,466-468,550,554-560,562-566,650,670
+  s_a4a3eea4720821::t_4c4a431f09cd1d 624-625
+  s_a4a3eea4720821::t_94b3e9d969fc0c 567,569-593,614-623,626-649,667,669
+  s_a4a3eea4720821::t_912318b762763a 651-666,668,671-674
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bc71767f1e372503c8b5aeb16131798f4826b59c",
+  "prompts": {},
+  "sessions": {
+    "s_a4a3eea4720821": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f4ef-68fa-7c11-b609-3f16bf1d9bf7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
