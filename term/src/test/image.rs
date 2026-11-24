@@ -229,16 +229,16 @@ fn kitty_delete_by_number_position_and_id_range() {
     term.print("\x1b_Ga=t,f=32,s=1,v=1,I=9,q=2;AQID/w==\x1b\\");
     term.print("\x1b_Ga=p,I=9,p=1,c=1,r=1,C=1,q=2\x1b\\");
     term.print("\x1b[1;2H\x1b_Ga=p,I=9,p=2,c=1,r=1,C=1,q=2\x1b\\");
-    assert_eq!(image_attachment_stats(&mut term).3, 2);
+    std::assert_eq!(image_attachment_stats(&mut term).3, 2);
     term.print("\x1b_Ga=d,d=N,I=9,p=1,q=2\x1b\\");
-    assert_eq!(image_attachment_stats(&mut term).3, 1);
+    std::assert_eq!(image_attachment_stats(&mut term).3, 1);
     term.print("\x1b_Ga=d,d=p,x=2,y=1,q=2\x1b\\");
-    assert_eq!(image_attachment_stats(&mut term).3, 0);
+    std::assert_eq!(image_attachment_stats(&mut term).3, 0);
     term.print("\x1b_Ga=p,I=9,p=3,c=1,r=1,C=1,q=2\x1b\\");
-    assert_eq!(image_attachment_stats(&mut term).3, 1);
+    std::assert_eq!(image_attachment_stats(&mut term).3, 1);
     term.print("\x1b_Ga=d,d=R,x=1,y=4294967295,q=2\x1b\\");
     term.print("\x1b_Ga=p,I=9,p=3,c=1,r=1,C=1,q=2\x1b\\");
-    assert_eq!(image_attachment_stats(&mut term).3, 0);
+    std::assert_eq!(image_attachment_stats(&mut term).3, 0);
 }
 
 /// `r` and `h` default to zero, so `r=0,h=0` asks for the whole image over as
@@ -430,7 +430,7 @@ fn kitty_virtual_placement_is_not_displayed_at_cursor() {
     let no_images = term.screen().visible_lines()[0]
         .visible_cells()
         .all(|c| c.attrs().images().is_none());
-    assert_eq!(no_images, true);
+    std::assert_eq!(no_images, true);
 }
 
 /// Placeholder cells reference a tile of a virtual placement through
@@ -457,14 +457,14 @@ fn kitty_unicode_placeholder_shows_image_tiles() {
     for (x, expected_left) in [(0usize, 0.0f32), (1usize, 0.5f32)] {
         // The placeholder text must not remain in the cell; it would
         // otherwise be subjected to font rendering
-        assert_eq!(cells[x].str(), " ");
+        std::assert_eq!(cells[x].str(), " ");
         let images = cells[x].attrs().images().expect("image tile attached");
-        assert_eq!(images.len(), 1);
-        assert_eq!(images[0].image_id(), Some(42));
-        assert_eq!(images[0].top_left().x.into_inner(), expected_left);
-        assert_eq!(images[0].top_left().y.into_inner(), 0.0);
-        assert_eq!(images[0].bottom_right().x.into_inner(), expected_left + 0.5);
-        assert_eq!(images[0].bottom_right().y.into_inner(), 0.5);
+        std::assert_eq!(images.len(), 1);
+        std::assert_eq!(images[0].image_id(), Some(42));
+        std::assert_eq!(images[0].top_left().x.into_inner(), expected_left);
+        std::assert_eq!(images[0].top_left().y.into_inner(), 0.0);
+        std::assert_eq!(images[0].bottom_right().x.into_inner(), expected_left + 0.5);
+        std::assert_eq!(images[0].bottom_right().y.into_inner(), 0.5);
     }
 }
 
@@ -488,12 +488,12 @@ fn kitty_unicode_placeholder_infers_omitted_diacritics() {
     let cells: Vec<_> = lines[0].visible_cells().collect();
 
     let first = &cells[0].attrs().images().expect("image tile attached")[0];
-    assert_eq!(first.top_left().x.into_inner(), 0.0);
-    assert_eq!(first.top_left().y.into_inner(), 0.5);
+    std::assert_eq!(first.top_left().x.into_inner(), 0.0);
+    std::assert_eq!(first.top_left().y.into_inner(), 0.5);
 
     let second = &cells[1].attrs().images().expect("image tile attached")[0];
-    assert_eq!(second.top_left().x.into_inner(), 0.5);
-    assert_eq!(second.top_left().y.into_inner(), 0.5);
+    std::assert_eq!(second.top_left().x.into_inner(), 0.5);
+    std::assert_eq!(second.top_left().y.into_inner(), 0.5);
 }
 
 /// A placeholder that doesn't reference any known virtual placement is
@@ -507,8 +507,8 @@ fn kitty_unicode_placeholder_without_placement_is_text() {
 
     let lines = term.screen().visible_lines();
     let cell = lines[0].visible_cells().next().unwrap();
-    assert_eq!(cell.str(), "\u{10eeee}\u{305}\u{305}");
-    assert_eq!(cell.attrs().images().is_none(), true);
+    std::assert_eq!(cell.str(), "\u{10eeee}\u{305}\u{305}");
+    std::assert_eq!(cell.attrs().images().is_none(), true);
 }
 
 /// Clients like nvim's snacks.image create the virtual placement with an
@@ -528,7 +528,7 @@ fn kitty_unicode_placeholder_without_placement_id_matches_any_placement() {
 
     let lines = term.screen().visible_lines();
     let cells: Vec<_> = lines[0].visible_cells().collect();
-    assert_eq!(cells[0].str(), " ");
+    std::assert_eq!(cells[0].str(), " ");
     let images = cells[0].attrs().images().expect("image tile attached");
-    assert_eq!(images[0].image_id(), Some(42));
+    std::assert_eq!(images[0].image_id(), Some(42));
 }
