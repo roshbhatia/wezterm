@@ -1114,6 +1114,7 @@ mod test {
                         more_data_follows: false,
                     },
                     placement: KittyImagePlacement {
+                        unicode_placeholder: false,
                         x: None,
                         y: None,
                         w: None,

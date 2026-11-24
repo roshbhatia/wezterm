@@ -1451,6 +1451,7 @@ mod test {
                 image_id: Some(10),
                 image_number: None,
                 placement: KittyImagePlacement {
+                    unicode_placeholder: false,
                     x: None,
                     y: None,
                     w: None,
