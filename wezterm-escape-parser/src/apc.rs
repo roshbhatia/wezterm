@@ -719,7 +719,9 @@ impl KittyImagePlacement {
 pub enum KittyImageDelete {
     /// d='a' or d='A'.
     /// Delete all placements on visible screen
-    All { delete: bool },
+    All {
+        delete: bool,
+    },
     /// d='i' or d='I'
     /// Delete all images with specified image_id.
     /// If placement_id is specified, then both image_id
@@ -738,20 +740,33 @@ pub enum KittyImageDelete {
         placement_id: Option<u32>,
         delete: bool,
     },
+    ByImageIdRange {
+        first: u32,
+        last: u32,
+        delete: bool,
+    },
 
     /// d='c' or d='C'
     /// Delete all placements that intersect with the current
     /// cursor position.
-    AtCursorPosition { delete: bool },
+    AtCursorPosition {
+        delete: bool,
+    },
 
     /// d='f' or d='F'
     /// Delete animation frames
-    AnimationFrames { delete: bool },
+    AnimationFrames {
+        delete: bool,
+    },
 
     /// d='p' or d='P'
     /// Delete all placements that intersect the specified
     /// cell x and y coordinates
-    DeleteAt { x: u32, y: u32, delete: bool },
+    DeleteAt {
+        x: u32,
+        y: u32,
+        delete: bool,
+    },
 
     /// d='q' or d='Q'
     /// Delete all placements that intersect the specified
@@ -765,15 +780,24 @@ pub enum KittyImageDelete {
 
     /// d='x' or d='X'
     /// Delete all placements that intersect the specified column.
-    DeleteColumn { x: u32, delete: bool },
+    DeleteColumn {
+        x: u32,
+        delete: bool,
+    },
 
     /// d='y' or d='Y'
     /// Delete all placements that intersect the specified row.
-    DeleteRow { y: u32, delete: bool },
+    DeleteRow {
+        y: u32,
+        delete: bool,
+    },
 
     /// d='z' or d='Z'
     /// Delete all placements that have the specified z-index.
-    DeleteZ { z: i32, delete: bool },
+    DeleteZ {
+        z: i32,
+        delete: bool,
+    },
 }
 
 impl KittyImageDelete {
@@ -796,6 +820,11 @@ impl KittyImageDelete {
             'n' | 'N' => Some(Self::ByImageNumber {
                 image_number: geti(keys, "I")?,
                 placement_id: geti_zero_is_absent(keys, "p"),
+                delete,
+            }),
+            'r' | 'R' => Some(Self::ByImageIdRange {
+                first: geti(keys, "x")?,
+                last: geti(keys, "y")?,
                 delete,
             }),
             'c' | 'C' => Some(Self::AtCursorPosition { delete }),
@@ -860,6 +889,15 @@ impl KittyImageDelete {
             }
             Self::AtCursorPosition { delete } => {
                 keys.insert("d", d('c', delete));
+            }
+            Self::ByImageIdRange {
+                first,
+                last,
+                delete,
+            } => {
+                keys.insert("d", d('r', delete));
+                keys.insert("x", first.to_string());
+                keys.insert("y", last.to_string());
             }
             Self::AnimationFrames { delete } => {
                 keys.insert("d", d('f', delete));

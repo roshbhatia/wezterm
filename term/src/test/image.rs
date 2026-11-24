@@ -223,6 +223,24 @@ fn kitty_anonymous_placements_at_distinct_positions_coexist() {
 /// Taken from the reproduction in <https://github.com/wezterm/wezterm/issues/6344>.
 const TINY_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAsAAAALCAYAAACprHcmAAAACXBIWXMAAAGKAAABigEzlzBYAAAAOUlEQVQYlZXOwQ0AMAzCQEdi7yaT0xWAN7JuDCac2PQKYxflycOoICOKtPIuqFCg4/LzKxiz6xjyAYh9DR1sLUN1AAAAAElFTkSuQmCC";
 
+#[test]
+fn kitty_delete_by_number_position_and_id_range() {
+    let mut term = TestTerm::new(6, 10, 0);
+    term.print("\x1b_Ga=t,f=32,s=1,v=1,I=9,q=2;AQID/w==\x1b\\");
+    term.print("\x1b_Ga=p,I=9,p=1,c=1,r=1,C=1,q=2\x1b\\");
+    term.print("\x1b[1;2H\x1b_Ga=p,I=9,p=2,c=1,r=1,C=1,q=2\x1b\\");
+    assert_eq!(image_attachment_stats(&mut term).3, 2);
+    term.print("\x1b_Ga=d,d=N,I=9,p=1,q=2\x1b\\");
+    assert_eq!(image_attachment_stats(&mut term).3, 1);
+    term.print("\x1b_Ga=d,d=p,x=2,y=1,q=2\x1b\\");
+    assert_eq!(image_attachment_stats(&mut term).3, 0);
+    term.print("\x1b_Ga=p,I=9,p=3,c=1,r=1,C=1,q=2\x1b\\");
+    assert_eq!(image_attachment_stats(&mut term).3, 1);
+    term.print("\x1b_Ga=d,d=R,x=1,y=4294967295,q=2\x1b\\");
+    term.print("\x1b_Ga=p,I=9,p=3,c=1,r=1,C=1,q=2\x1b\\");
+    assert_eq!(image_attachment_stats(&mut term).3, 0);
+}
+
 /// `r` and `h` default to zero, so `r=0,h=0` asks for the whole image over as
 /// many rows as its own height needs, and it is displayed.
 /// Reading those zeros as literal dimensions is what divided by zero in

@@ -109,6 +109,18 @@ impl KittyImageState {
         }
     }
 
+    fn release_unused_image(&mut self, image_id: u32) {
+        let has_placements = self
+            .placements
+            .keys()
+            .chain(self.virtual_placements.keys())
+            .any(|(id, _)| *id == image_id);
+        if !has_placements {
+            self.remove_data_for_id(image_id);
+            self.number_to_id.retain(|_, id| *id != image_id);
+        }
+    }
+
     fn record_id_to_data(&mut self, image_id: u32, data: Arc<ImageData>) {
         // insert() below replaces the entry for any id, including 0, so the old
         // size must be dropped for every id or used_memory never shrinks.
@@ -451,6 +463,9 @@ impl TerminalState {
             return Ok(());
         }
         let verbosity = img.verbosity();
+        if matches!(&img, KittyImage::Delete { .. }) {
+            self.kitty_img.accumulator.clear();
+        }
         match img {
             KittyImage::Query { transmit } => match transmit.data.load_data() {
                 Ok(_) => {
@@ -532,17 +547,50 @@ impl TerminalState {
                 self.kitty_remove_placement(image_id, placement_id);
 
                 if delete {
-                    self.kitty_img.remove_data_for_id(image_id);
+                    self.kitty_img.release_unused_image(image_id);
                 }
             }
             KittyImage::Delete {
-                what: KittyImageDelete::All { delete },
-                verbosity: _,
+                what:
+                    KittyImageDelete::ByImageNumber {
+                        image_number,
+                        placement_id,
+                        delete,
+                    },
+                ..
             } => {
-                self.kitty_remove_all_placements(delete);
+                if let Some(image_id) = self.kitty_img.number_to_id.get(&image_number).copied() {
+                    self.kitty_remove_placement(image_id, placement_id);
+                    if delete {
+                        self.kitty_img.release_unused_image(image_id);
+                    }
+                }
             }
-            KittyImage::Delete { what, verbosity } => {
-                log::warn!("unhandled KittyImage::Delete {:?} {:?}", what, verbosity);
+            KittyImage::Delete {
+                what:
+                    KittyImageDelete::ByImageIdRange {
+                        first,
+                        last,
+                        delete,
+                    },
+                ..
+            } => {
+                let ids: Vec<_> = self
+                    .kitty_img
+                    .id_to_data
+                    .keys()
+                    .copied()
+                    .filter(|id| (first..=last).contains(id))
+                    .collect();
+                for id in ids {
+                    self.kitty_remove_placement(id, None);
+                    if delete {
+                        self.kitty_img.release_unused_image(id);
+                    }
+                }
+            }
+            KittyImage::Delete { what, .. } => {
+                self.kitty_remove_visible_placements(what);
             }
             KittyImage::TransmitFrame {
                 transmit,
@@ -561,6 +609,67 @@ impl TerminalState {
         };
 
         Ok(())
+    }
+
+    fn kitty_remove_visible_placements(&mut self, what: KittyImageDelete) {
+        use KittyImageDelete::*;
+        let (x, y, z, delete) = match what {
+            All { delete } => (None, None, None, delete),
+            AtCursorPosition { delete } => (
+                Some(self.cursor.x),
+                usize::try_from(self.cursor.y).ok(),
+                None,
+                delete,
+            ),
+            DeleteAt { x, y, delete } => (
+                Some(x.saturating_sub(1) as usize),
+                Some(y.saturating_sub(1) as usize),
+                None,
+                delete,
+            ),
+            DeleteAtZ { x, y, z, delete } => (
+                Some(x.saturating_sub(1) as usize),
+                Some(y.saturating_sub(1) as usize),
+                Some(z),
+                delete,
+            ),
+            DeleteColumn { x, delete } => (Some(x.saturating_sub(1) as usize), None, None, delete),
+            DeleteRow { y, delete } => (None, Some(y.saturating_sub(1) as usize), None, delete),
+            DeleteZ { z, delete } => (None, None, Some(z), delete),
+            _ => return,
+        };
+        let mut selected = HashSet::new();
+        let screen = self.screen();
+        let rows = screen.physical_rows;
+        let cols = screen.physical_cols;
+        for row in 0..rows {
+            if y.is_some_and(|y| y != row) {
+                continue;
+            }
+            let row = self.screen().phys_row(row as VisibleRowIndex);
+            let line = self.screen_mut().line_mut(row);
+            for cell in line.visible_cells() {
+                if cell.cell_index() >= cols || x.is_some_and(|x| x != cell.cell_index()) {
+                    continue;
+                }
+                if let Some(images) = cell.attrs().images() {
+                    selected.extend(images.iter().filter_map(|image| {
+                        if z.is_some_and(|z| z != image.z_index()) {
+                            return None;
+                        }
+                        Some((image.image_id()?, image.placement_id()))
+                    }));
+                }
+            }
+        }
+        for (id, placement) in selected {
+            if let Some(info) = self.kitty_img.placements.remove(&(id, placement)) {
+                self.kitty_remove_placement_from_model(id, placement, info);
+                if delete {
+                    self.kitty_img.release_unused_image(id);
+                }
+            }
+        }
     }
 
     fn kitty_remove_placement_from_model(
