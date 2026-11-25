@@ -444,6 +444,7 @@ pub struct TermWindow {
     current_modifier_and_leds: (Modifiers, KeyboardLedStatus),
     current_mouse_buttons: Vec<MousePress>,
     current_mouse_capture: Option<MouseCapture>,
+    bypass_mouse_reporting_for_drag: bool,
 
     opengl_info: Option<String>,
 
@@ -568,6 +569,7 @@ impl TermWindow {
             self.last_mouse_click = None;
             self.current_mouse_buttons.clear();
             self.current_mouse_capture = None;
+            self.bypass_mouse_reporting_for_drag = false;
             self.is_click_to_focus_window = false;
 
             for state in self.pane_state.borrow_mut().values_mut() {
@@ -765,6 +767,7 @@ impl TermWindow {
             pane_state: RefCell::new(HashMap::new()),
             current_mouse_buttons: vec![],
             current_mouse_capture: None,
+            bypass_mouse_reporting_for_drag: false,
             last_mouse_click: None,
             current_highlight: None,
             quad_generation: 0,

@@ -120,9 +120,14 @@ impl super::TermWindow {
         self.last_mouse_coords = (x, y);
 
         let mut capture_mouse = false;
+        let bypass_for_drag = self.bypass_mouse_reporting_for_drag
+            && matches!(event.kind, WMEK::Move | WMEK::Release(MousePress::Left));
 
         match event.kind {
             WMEK::Release(ref press) => {
+                if *press == MousePress::Left {
+                    self.bypass_mouse_reporting_for_drag = false;
+                }
                 self.current_mouse_capture = None;
                 self.current_mouse_buttons.retain(|p| p != press);
                 if press == &MousePress::Left && self.window_drag_position.take().is_some() {
@@ -136,6 +141,7 @@ impl super::TermWindow {
             }
 
             WMEK::Press(ref press) => {
+                self.bypass_mouse_reporting_for_drag = false;
                 capture_mouse = true;
 
                 // Perform click counting
@@ -236,6 +242,7 @@ impl super::TermWindow {
                 event,
                 context,
                 capture_mouse,
+                bypass_for_drag,
             );
         }
 
@@ -669,6 +676,7 @@ impl super::TermWindow {
         event: MouseEvent,
         context: &dyn WindowOps,
         capture_mouse: bool,
+        bypass_for_drag: bool,
     ) {
         let mut is_click_to_focus_pane = false;
 
@@ -972,14 +980,12 @@ impl super::TermWindow {
                 self.current_event = Some(event_trigger_type.to_dynamic());
                 let mut modifiers = event.modifiers;
 
-                // Since we use shift to force assessing the mouse bindings, pretend
-                // that shift is not one of the mods when the mouse is grabbed.
-                let mut mouse_reporting = pane.is_mouse_grabbed();
-                if mouse_reporting {
-                    if modifiers.contains(self.config.bypass_mouse_reporting_modifiers) {
-                        modifiers.remove(self.config.bypass_mouse_reporting_modifiers);
-                        mouse_reporting = false;
-                    }
+                let app_reports_mouse = pane.is_mouse_grabbed();
+                let bypass_requested = app_reports_mouse
+                    && modifiers.contains(self.config.bypass_mouse_reporting_modifiers);
+                let mouse_reporting = app_reports_mouse && !(bypass_requested || bypass_for_drag);
+                if bypass_requested || bypass_for_drag {
+                    modifiers.remove(self.config.bypass_mouse_reporting_modifiers);
                 }
 
                 if mouse_reporting {
@@ -1035,6 +1041,11 @@ impl super::TermWindow {
                 };
 
                 if let Some(action) = self.input_map.lookup_mouse(event_trigger_type, mouse_mods) {
+                    // A terminal-owned selection must receive its release even if
+                    // the bypass key was released earlier in the gesture.
+                    if bypass_requested && matches!(event.kind, WMEK::Press(MousePress::Left)) {
+                        self.bypass_mouse_reporting_for_drag = true;
+                    }
                     self.perform_key_assignment(&pane, &action).ok();
                     return;
                 }
