@@ -1,0 +1,39 @@
+wezterm-gui/src/termwindow/mod.rs
+  s_a4a3eea4720821::t_bcae0bccc4c483 2925,2928,3054,3064
+config/src/config.rs
+  s_a4a3eea4720821::t_bcae0bccc4c483 913-915
+wezterm-gui/src/termwindow/clipboard.rs
+  s_a4a3eea4720821::t_bcae0bccc4c483 4,7,11-17,26-28
+  s_a4a3eea4720821::t_d6b2f0ef0c6090 29-34
+wezterm-gui/src/termwindow/charselect.rs
+  s_a4a3eea4720821::t_bcae0bccc4c483 681
+  s_a4a3eea4720821::t_d0a5c45c661f03 679,682,684
+window/src/lib.rs
+  s_a4a3eea4720821::t_acb0de326ddad1 312-313
+window/src/os/macos/window.rs
+  s_a4a3eea4720821::t_1b9799d2d4c1ce 848-849
+window/src/os/wayland/window.rs
+  s_a4a3eea4720821::t_ff1092c3c6acaf 491,503
+window/src/os/windows/window.rs
+  s_a4a3eea4720821::t_4603267f1fb0e8 968-969
+window/src/os/x11/window.rs
+  s_a4a3eea4720821::t_8583ef04893a52 2162,2176
+window/src/os/x_and_wayland.rs
+  s_a4a3eea4720821::t_77125eba231953 404
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7a6fed48f924fb7172480218c30e860b43ac779",
+  "prompts": {},
+  "sessions": {
+    "s_a4a3eea4720821": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f4ef-68fa-7c11-b609-3f16bf1d9bf7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
