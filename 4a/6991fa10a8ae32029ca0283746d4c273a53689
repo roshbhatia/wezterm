@@ -1,0 +1,21 @@
+wezterm-gui/src/termwindow/mod.rs
+  s_a4a3eea4720821::t_ab4ec681272a4b 447,572,770
+wezterm-gui/src/termwindow/mouseevent.rs
+  s_a4a3eea4720821::t_ab4ec681272a4b 123-124,128-130,144,245,679,983-988,1044-1048
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4a6991fa10a8ae32029ca0283746d4c273a53689",
+  "prompts": {},
+  "sessions": {
+    "s_a4a3eea4720821": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1f4ef-68fa-7c11-b609-3f16bf1d9bf7",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
