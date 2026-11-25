@@ -965,8 +965,8 @@ impl WindowOps for Window {
         )
     }
 
-    fn set_clipboard(&self, _clipboard: Clipboard, text: String) {
-        clipboard_win::set_clipboard_string(&text).ok();
+    fn set_clipboard(&self, _clipboard: Clipboard, text: String) -> bool {
+        clipboard_win::set_clipboard_string(&text).is_ok()
     }
 
     fn set_window_drag_position(&self, coords: ScreenPoint) {

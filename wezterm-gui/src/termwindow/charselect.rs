@@ -676,10 +676,12 @@ impl Modal for CharSelector {
                     self.copy_to
                 );
 
+                let pane = term_window.get_active_pane_or_overlay();
                 if self.copy_on_select {
-                    term_window.copy_to_clipboard(self.copy_to, glyph.clone());
+                    let pane_id = pane.as_ref().map(|pane| pane.pane_id());
+                    term_window.copy_to_clipboard(pane_id, self.copy_to, glyph.clone());
                 }
-                if let Some(pane) = term_window.get_active_pane_or_overlay() {
+                if let Some(pane) = pane {
                     pane.writer().write_all(glyph.as_bytes()).ok();
                 }
                 term_window.cancel_modal();

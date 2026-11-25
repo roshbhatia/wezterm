@@ -910,6 +910,9 @@ pub struct Config {
     pub visual_bell: VisualBell,
 
     #[dynamic(default)]
+    pub visual_bell_on_copy: bool,
+
+    #[dynamic(default)]
     pub audible_bell: AudibleBell,
 
     #[dynamic(default)]

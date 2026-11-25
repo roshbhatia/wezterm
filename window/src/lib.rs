@@ -309,7 +309,8 @@ pub trait WindowOps {
     fn get_clipboard(&self, clipboard: Clipboard) -> Future<String>;
 
     /// Set some text in the clipboard
-    fn set_clipboard(&self, clipboard: Clipboard, text: String);
+    /// Returns whether the backend wrote or accepted the clipboard update.
+    fn set_clipboard(&self, clipboard: Clipboard, text: String) -> bool;
 
     /// Set window level. Depending on the environment and user preferences
     fn set_window_level(&self, _level: WindowLevel) {}

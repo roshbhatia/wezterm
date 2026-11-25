@@ -845,8 +845,8 @@ impl WindowOps for Window {
         )
     }
 
-    fn set_clipboard(&self, _clipboard: Clipboard, text: String) {
-        ClipboardContext::new().write(text).ok();
+    fn set_clipboard(&self, _clipboard: Clipboard, text: String) -> bool {
+        ClipboardContext::new().write(text).is_ok()
     }
 
     fn toggle_fullscreen(&self) {

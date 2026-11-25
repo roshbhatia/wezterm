@@ -2922,10 +2922,10 @@ impl TermWindow {
             }
             CopyTo(dest) => {
                 let text = self.selection_text(pane);
-                self.copy_to_clipboard(*dest, text);
+                self.copy_to_clipboard(Some(pane.pane_id()), *dest, text);
             }
             CopyTextTo { text, destination } => {
-                self.copy_to_clipboard(*destination, text.clone());
+                self.copy_to_clipboard(Some(pane.pane_id()), *destination, text.clone());
             }
             PasteFrom(source) => {
                 self.paste_from_clipboard(pane, *source);
@@ -3051,7 +3051,7 @@ impl TermWindow {
             CompleteSelectionOrOpenLinkAtMouseCursor(dest) => {
                 let text = self.selection_text(pane);
                 if !text.is_empty() {
-                    self.copy_to_clipboard(*dest, text);
+                    self.copy_to_clipboard(Some(pane.pane_id()), *dest, text);
                     let window = self.window.as_ref().unwrap();
                     window.invalidate();
                 } else {
@@ -3061,7 +3061,7 @@ impl TermWindow {
             CompleteSelection(dest) => {
                 let text = self.selection_text(pane);
                 if !text.is_empty() {
-                    self.copy_to_clipboard(*dest, text);
+                    self.copy_to_clipboard(Some(pane.pane_id()), *dest, text);
                     let window = self.window.as_ref().unwrap();
                     window.invalidate();
                 }

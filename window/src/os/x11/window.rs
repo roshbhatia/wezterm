@@ -2159,7 +2159,7 @@ impl WindowOps for XWindow {
     }
 
     /// Set some text in the clipboard
-    fn set_clipboard(&self, clipboard: Clipboard, text: String) {
+    fn set_clipboard(&self, clipboard: Clipboard, text: String) -> bool {
         let window_id = self.0;
         XConnection::with_window_inner(window_id, move |inner| {
             log::trace!(
@@ -2173,6 +2173,7 @@ impl WindowOps for XWindow {
             inner.update_selection_owner(clipboard)?;
             Ok(())
         });
+        true
     }
 }
 

@@ -1,13 +1,20 @@
 use crate::termwindow::TermWindowNotif;
 use crate::TermWindow;
 use config::keyassignment::{ClipboardCopyDestination, ClipboardPasteSource};
-use mux::pane::Pane;
+use mux::pane::{Pane, PaneId};
 use mux::Mux;
 use std::sync::Arc;
+use std::time::Instant;
 use window::{Clipboard, WindowOps};
 
 impl TermWindow {
-    pub fn copy_to_clipboard(&self, clipboard: ClipboardCopyDestination, text: String) {
+    pub fn copy_to_clipboard(
+        &self,
+        pane_id: Option<PaneId>,
+        clipboard: ClipboardCopyDestination,
+        text: String,
+    ) {
+        let window = self.window.as_ref().unwrap();
         let clipboard = match clipboard {
             ClipboardCopyDestination::Clipboard => [Some(Clipboard::Clipboard), None],
             ClipboardCopyDestination::PrimarySelection => [Some(Clipboard::PrimarySelection), None],
@@ -16,9 +23,15 @@ impl TermWindow {
                 Some(Clipboard::PrimarySelection),
             ],
         };
-        for &c in &clipboard {
-            if let Some(c) = c {
-                self.window.as_ref().unwrap().set_clipboard(c, text.clone());
+        let mut copied = false;
+        for dest in clipboard.into_iter().flatten() {
+            copied |= window.set_clipboard(dest, text.clone());
+        }
+        if copied && self.config.visual_bell_on_copy && !text.is_empty() {
+            if let Some(pane_id) = pane_id {
+                log::trace!("Visual copy bell in pane {pane_id}");
+                self.pane_state(pane_id).bell_start.replace(Instant::now());
+                window.invalidate();
             }
         }
     }

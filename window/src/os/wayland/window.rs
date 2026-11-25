@@ -488,7 +488,7 @@ impl WindowOps for WaylandWindow {
         future
     }
 
-    fn set_clipboard(&self, clipboard: Clipboard, text: String) {
+    fn set_clipboard(&self, clipboard: Clipboard, text: String) -> bool {
         promise::spawn::spawn_into_main_thread(async move {
             let conn = crate::Connection::get().unwrap().wayland();
             // Clone the Arc before dropping the borrow so set_clipboard_data can re-borrow
@@ -500,6 +500,7 @@ impl WindowOps for WaylandWindow {
                 .set_clipboard_data(clipboard, text);
         })
         .detach();
+        true
     }
 
     fn toggle_fullscreen(&self) {

@@ -401,7 +401,7 @@ impl WindowOps for Window {
             Self::Wayland(w) => w.get_clipboard(clipboard),
         }
     }
-    fn set_clipboard(&self, clipboard: Clipboard, text: String) {
+    fn set_clipboard(&self, clipboard: Clipboard, text: String) -> bool {
         match self {
             Self::X11(x) => x.set_clipboard(clipboard, text),
             #[cfg(feature = "wayland")]
