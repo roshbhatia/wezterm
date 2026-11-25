@@ -24,7 +24,7 @@ impl TermWindow {
             ],
         };
         let mut copied = false;
-        for dest in clipboard.into_iter().flatten() {
+        for &dest in clipboard.iter().flatten() {
             copied |= window.set_clipboard(dest, text.clone());
         }
         if copied && self.config.visual_bell_on_copy && !text.is_empty() {
