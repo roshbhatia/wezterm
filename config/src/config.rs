@@ -49,8 +49,39 @@ use wezterm_input_types::{
 };
 use wezterm_term::TerminalSize;
 
+#[derive(Debug, Clone, FromDynamic, ToDynamic)]
+pub struct RemoteClientConfig {
+    #[dynamic(
+        default = "default_remote_interface",
+        validate = "validate_remote_interface"
+    )]
+    pub interface: String,
+}
+
+fn default_remote_interface() -> String {
+    "cli".to_owned()
+}
+
+fn validate_remote_interface(value: &str) -> Result<(), String> {
+    match value {
+        "cli" | "ui" => Ok(()),
+        _ => Err("remote_client.interface must be cli or ui".to_owned()),
+    }
+}
+
+impl Default for RemoteClientConfig {
+    fn default() -> Self {
+        Self {
+            interface: default_remote_interface(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, FromDynamic, ToDynamic, ConfigMeta)]
 pub struct Config {
+    #[dynamic(default)]
+    pub remote_client: RemoteClientConfig,
+
     /// The font size, measured in points
     #[dynamic(default = "default_font_size")]
     pub font_size: f64,

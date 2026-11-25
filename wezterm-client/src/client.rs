@@ -389,14 +389,21 @@ fn client_thread(
     reconnectable: &mut Reconnectable,
     local_domain_id: Option<DomainId>,
     rx: &mut Receiver<ReaderMessage>,
+    events: Option<&Sender<Pdu>>,
 ) -> anyhow::Result<()> {
-    block_on(client_thread_async(reconnectable, local_domain_id, rx))
+    block_on(client_thread_async(
+        reconnectable,
+        local_domain_id,
+        rx,
+        events,
+    ))
 }
 
 async fn client_thread_async(
     reconnectable: &mut Reconnectable,
     local_domain_id: Option<DomainId>,
     rx: &mut Receiver<ReaderMessage>,
+    events: Option<&Sender<Pdu>>,
 ) -> anyhow::Result<()> {
     let mut next_serial = 1u64;
 
@@ -450,6 +457,13 @@ async fn client_thread_async(
                             decoded.pdu.pdu_name()
                         );
                         if decoded.serial == 0 {
+                            if let Some(events) = events {
+                                events
+                                    .send(decoded.pdu)
+                                    .await
+                                    .context("delivering mux event")?;
+                                continue;
+                            }
                             process_unilateral(local_domain_id, decoded)
                                 .context("processing unilateral PDU from server")
                                 .map_err(|e| {
@@ -1099,7 +1113,15 @@ impl Client {
         }
     }
 
-    fn new(local_domain_id: Option<DomainId>, mut reconnectable: Reconnectable) -> Self {
+    fn new(local_domain_id: Option<DomainId>, reconnectable: Reconnectable) -> Self {
+        Self::new_with_events(local_domain_id, reconnectable, None)
+    }
+
+    fn new_with_events(
+        local_domain_id: Option<DomainId>,
+        mut reconnectable: Reconnectable,
+        events: Option<Sender<Pdu>>,
+    ) -> Self {
         let client_domain_config = reconnectable.config.clone();
         let is_reconnectable = reconnectable.reconnectable();
         let is_local = reconnectable.is_local();
@@ -1112,7 +1134,12 @@ impl Client {
 
             let mut backoff = BASE_INTERVAL;
             loop {
-                if let Err(e) = client_thread(&mut reconnectable, local_domain_id, &mut receiver) {
+                if let Err(e) = client_thread(
+                    &mut reconnectable,
+                    local_domain_id,
+                    &mut receiver,
+                    events.as_ref(),
+                ) {
                     if !reconnectable.reconnectable() || local_domain_id.is_none() {
                         log::debug!("client thread ended: {}", e);
                         break;
@@ -1339,6 +1366,23 @@ impl Client {
         Ok(Self::new(local_domain_id, reconnectable))
     }
 
+    /// Connect a terminal frontend and deliver serial-zero messages in order.
+    pub fn new_unix_domain_with_events(
+        unix_dom: &UnixDomain,
+        ui: &mut ConnectionUI,
+        no_auto_start: bool,
+    ) -> anyhow::Result<(Self, Receiver<Pdu>)> {
+        let mut reconnectable =
+            Reconnectable::new(ClientDomainConfig::Unix(unix_dom.clone()), None);
+        reconnectable.connect(true, ui, no_auto_start)?;
+        let (tx, rx) = unbounded();
+        Ok((Self::new_with_events(None, reconnectable, Some(tx)), rx))
+    }
+
+    pub fn default_unix_domain(prefer_mux: bool, class_name: &str) -> anyhow::Result<UnixDomain> {
+        Self::compute_unix_domain(prefer_mux, class_name)
+    }
+
     pub fn new_tls(
         local_domain_id: DomainId,
         tls_client: &TlsDomainClient,
@@ -1476,4 +1520,123 @@ impl Client {
         GetPaneDirectionResponse
     );
     rpc!(adjust_pane_size, AdjustPaneSize, UnitResponse);
+}
+
+#[cfg(test)]
+mod focus_tests {
+    use super::*;
+    use crate::domain::ClientInner;
+    use mux::domain::alloc_domain_id;
+    use mux::pane::Pane;
+    use mux::tab::Tab;
+    use std::sync::Arc;
+    use wezterm_term::TerminalSize;
+
+    #[test]
+    fn remote_pane_focus_does_not_echo_but_local_focus_does() {
+        let (pending, ready) = unbounded();
+        let pending_low = pending.clone();
+        promise::spawn::set_schedulers(
+            Box::new(move |task| {
+                pending.try_send(task).ok();
+            }),
+            Box::new(move |task| {
+                pending_low.try_send(task).ok();
+            }),
+        );
+        let drain = || {
+            while let Ok(task) = ready.try_recv() {
+                task.run();
+            }
+        };
+        {
+            let mux = Arc::new(Mux::new(None));
+            Mux::set_mux(&mux);
+            let (sender, requests) = unbounded();
+            let mut client = Client::dummy();
+            client.sender = sender;
+            let inner = Arc::new(ClientInner::new(alloc_domain_id(), client, None, false));
+            let size = TerminalSize::default();
+            let normal = Arc::new(ClientPane::new(&inner, 10, 100, size, "normal"));
+            let floating = Arc::new(ClientPane::new(&inner, 10, 200, size, "floating"));
+            let normal_pane: Arc<dyn Pane> = normal.clone();
+            let floating_pane: Arc<dyn Pane> = floating.clone();
+            let tab = Arc::new(Tab::new(&size));
+            tab.assign_pane(&normal_pane);
+            mux.add_pane(&normal_pane).unwrap();
+            mux.add_pane(&floating_pane).unwrap();
+            mux.add_tab_no_panes(&tab);
+            let window = *mux.new_empty_window(None, None);
+            mux.add_tab_to_window(&tab, window).unwrap();
+            tab.add_floating_pane(size, floating_pane).unwrap();
+            drain();
+            while requests.try_recv().is_ok() {}
+            let state_echoes = Arc::new(std::sync::Mutex::new(0));
+            let capture = Arc::clone(&state_echoes);
+            mux.subscribe(move |event| {
+                if matches!(
+                    event,
+                    mux::MuxNotification::FloatingPaneVisibilityChanged { .. }
+                        | mux::MuxNotification::ActiveFloatingPaneChanged { .. }
+                ) {
+                    *capture.lock().unwrap() += 1;
+                }
+                true
+            });
+
+            for (pane, remote_id, visible) in [
+                (&normal, 100, false),
+                (&floating, 200, true),
+                (&normal, 100, false),
+            ] {
+                block_on(
+                    pane.process_unilateral(Pdu::PaneFocused(PaneFocused { pane_id: remote_id })),
+                )
+                .unwrap();
+                drain();
+                assert_eq!(tab.floating_pane_is_visible(), visible);
+                assert_eq!(
+                    *state_echoes.lock().unwrap(),
+                    0,
+                    "remote focus emitted local floating-state requests"
+                );
+                let mut echoed = Vec::new();
+                while let Ok(request) = requests.try_recv() {
+                    if let ReaderMessage::SendPdu {
+                        pdu: Pdu::SetFocusedPane(focus),
+                        ..
+                    } = request
+                    {
+                        echoed.push(focus.pane_id);
+                    }
+                }
+                assert!(
+                    echoed.is_empty(),
+                    "remote focus echoed as outgoing requests: {:?}",
+                    echoed
+                );
+            }
+
+            tab.set_active_pane(&(floating.clone() as Arc<dyn Pane>));
+            drain();
+            let mut local = Vec::new();
+            while let Ok(request) = requests.try_recv() {
+                if let ReaderMessage::SendPdu {
+                    pdu: Pdu::SetFocusedPane(focus),
+                    ..
+                } = request
+                {
+                    local.push(focus.pane_id);
+                }
+            }
+            assert_eq!(local, vec![200], "local focus must still reach the server");
+            assert!(
+                *state_echoes.lock().unwrap() > 0,
+                "local floating-state changes must still reach the server"
+            );
+            // Release pane-owned tasks on the thread that created them.
+            Mux::shutdown();
+        }
+        drain();
+    }
 }
