@@ -1036,6 +1036,7 @@ impl QuickSelectRenderable {
                             }
                         } else {
                             term_window.copy_to_clipboard(
+                                Some(pane.pane_id()),
                                 ClipboardCopyDestination::ClipboardAndPrimarySelection,
                                 text,
                             );

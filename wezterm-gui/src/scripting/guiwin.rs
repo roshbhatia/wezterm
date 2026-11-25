@@ -306,7 +306,10 @@ impl UserData for GuiWin {
                 let clipboard = clipboard.unwrap_or_default();
                 this.window
                     .notify(TermWindowNotif::Apply(Box::new(move |term_window| {
-                        term_window.copy_to_clipboard(clipboard, text);
+                        let pane_id = term_window
+                            .get_active_pane_or_overlay()
+                            .map(|pane| pane.pane_id());
+                        term_window.copy_to_clipboard(pane_id, clipboard, text);
                     })));
                 Ok(())
             },
