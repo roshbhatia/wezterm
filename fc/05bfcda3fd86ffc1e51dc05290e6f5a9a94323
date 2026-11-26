@@ -1,0 +1,47 @@
+Cargo.lock
+  s_8db7fc35d14233::t_a7e5739fe00301 3802,7768
+config/src/config.rs
+  s_8db7fc35d14233::t_f4cbd274483b44 122-125
+lua-api-crates/mux/src/pane.rs
+  s_8db7fc35d14233::t_1d3bc8ae23a804 183-191
+mux/Cargo.toml
+  s_8db7fc35d14233::t_8d61f1cc03b329 23
+mux/src/domain.rs
+  s_8db7fc35d14233::t_81952268224da4 517,629,650-663,677-679
+mux/src/localpane.rs
+  s_8db7fc35d14233::t_9fad7204cfc058 475-483
+mux/src/pane.rs
+  s_8db7fc35d14233::t_6a7d4524179d60 243-245
+mux/src/ssh.rs
+  s_8db7fc35d14233::t_6877f57f08fc90 265
+term/Cargo.toml
+  s_8db7fc35d14233::t_5a547ebc1f2fca 33
+term/src/lib.rs
+  s_8db7fc35d14233::t_d27f621a5ed5dd 29,31
+term/src/program_resume.rs
+  s_8db7fc35d14233::t_4f25c5c1f02480 1-223
+term/src/terminalstate/mod.rs
+  s_8db7fc35d14233::t_1c648569c0f373 376,588,667-674
+term/src/terminalstate/performer.rs
+  s_8db7fc35d14233::t_98dd56ccf1ade3 797-803
+term/src/test/mod.rs
+  s_8db7fc35d14233::t_a34a1f5d733ca3 10
+term/src/test/program_resume.rs
+  s_8db7fc35d14233::t_c20db1eba284b5 1-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fc05bfcda3fd86ffc1e51dc05290e6f5a9a94323",
+  "prompts": {},
+  "sessions": {
+    "s_8db7fc35d14233": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a215ce-24da-7591-890e-c407374c6ce4",
+        "model": "gpt-6.2-sol"
+      },
+      "human_author": "Roshan Bhatia <rshnbhatia@gmail.com>"
+    }
+  }
+}
