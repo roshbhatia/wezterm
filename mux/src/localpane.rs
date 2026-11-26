@@ -472,6 +472,15 @@ impl Pane for LocalPane {
         self.terminal.lock().get_program_status()
     }
 
+    fn get_program_resume(&self) -> Option<wezterm_term::ProgramResumeRecord> {
+        let owner = self.get_foreground_process_info(CachePolicy::FetchImmediate)?;
+        let mut record = self.terminal.lock().get_program_resume(owner.pid)?;
+        if record.cwd.is_none() && owner.cwd.is_absolute() {
+            record.cwd = owner.cwd.to_str().map(str::to_owned);
+        }
+        Some(record)
+    }
+
     fn get_progress(&self) -> Progress {
         self.terminal.lock().get_progress()
     }

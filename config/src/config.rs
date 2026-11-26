@@ -119,6 +119,10 @@ pub struct Config {
     #[dynamic(default)]
     pub log_unknown_escape_sequences: bool,
 
+    /// Accept authenticated OSC 7577 resume reports from local programs.
+    #[dynamic(default)]
+    pub enable_program_resume: bool,
+
     #[dynamic(default)]
     pub integrated_title_button_alignment: IntegratedTitleButtonAlignment,
 

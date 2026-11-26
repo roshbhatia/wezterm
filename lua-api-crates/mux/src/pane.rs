@@ -180,6 +180,15 @@ impl UserData for MuxPane {
             )
         });
 
+        methods.add_method("get_program_resume", |lua, this, _: ()| {
+            let mux = get_mux()?;
+            let pane = this.resolve(&mux)?;
+            lua.to_value_with(
+                &pane.get_program_resume(),
+                mlua::SerializeOptions::new().serialize_none_to_null(false),
+            )
+        });
+
         methods.add_method("get_progress", |lua, this, _: ()| {
             let mux = get_mux()?;
             let pane = this.resolve(&mux)?;

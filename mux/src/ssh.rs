@@ -262,6 +262,7 @@ impl RemoteSshDomain {
             .iter_extra_env_as_str()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
+        env.remove(wezterm_term::PROGRAM_RESUME_TOKEN_ENV);
 
         // FIXME: this isn't useful without a way to talk to the remote mux.
         // One option is to forward the mux via unix domain, another is to

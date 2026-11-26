@@ -373,6 +373,7 @@ pub struct TerminalState {
     sixel_scrolls_right: bool,
 
     user_vars: HashMap<String, String>,
+    program_resume: crate::program_resume::ProgramResume,
     program_status: crate::program_status::ProgramStatus,
 
     kitty_img: KittyImageState,
@@ -584,6 +585,7 @@ impl TerminalState {
             image_cache: lru::LruCache::new(NonZeroUsize::new(16).unwrap()),
             user_vars: HashMap::new(),
             program_status: Default::default(),
+            program_resume: Default::default(),
             kitty_img: Default::default(),
             seqno,
             unicode_version,
@@ -660,6 +662,14 @@ impl TerminalState {
 
     pub fn get_program_status(&self) -> Vec<ProgramStatusRecord> {
         self.program_status.records()
+    }
+
+    pub fn set_program_resume_token(&mut self, token: String) {
+        self.program_resume.set_token(token);
+    }
+
+    pub fn get_program_resume(&self, pid: u32) -> Option<crate::ProgramResumeRecord> {
+        self.program_resume.record(pid)
     }
 
     pub fn clear_transient_program_status(&mut self) {

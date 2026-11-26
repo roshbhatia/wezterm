@@ -514,6 +514,7 @@ impl LocalDomain {
         if let Some(agent) = Mux::get().agent.as_ref() {
             cmd.env("SSH_AUTH_SOCK", agent.path());
         }
+        cmd.env_remove(wezterm_term::PROGRAM_RESUME_TOKEN_ENV);
         self.fixup_command(&mut cmd).await?;
         Ok(cmd)
     }
@@ -625,7 +626,7 @@ impl Domain for LocalDomain {
         command_dir: Option<String>,
     ) -> anyhow::Result<Arc<dyn Pane>> {
         let pane_id = alloc_pane_id();
-        let cmd = self
+        let mut cmd = self
             .build_command(command, command_dir, pane_id)
             .await
             .context("build_command")?;
@@ -646,6 +647,20 @@ impl Domain for LocalDomain {
             },
             self.name
         );
+        cmd.env_remove(wezterm_term::PROGRAM_RESUME_TOKEN_ENV);
+        let mut resume_token = None;
+        if cfg!(any(target_os = "macos", target_os = "linux"))
+            && self.name == "local"
+            && config::configuration().enable_program_resume
+        {
+            use base64::Engine;
+            let mut bytes = [0_u8; 32];
+            if getrandom::fill(&mut bytes).is_ok() {
+                let token = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+                cmd.env(wezterm_term::PROGRAM_RESUME_TOKEN_ENV, &token);
+                resume_token = Some(token);
+            }
+        }
         let child_result = pair.slave.spawn_command(cmd);
         let mut writer = WriterWrapper::new(pair.master.take_writer()?);
 
@@ -658,6 +673,9 @@ impl Domain for LocalDomain {
         );
         if self.is_conpty() {
             terminal.enable_conpty_quirks();
+        }
+        if let Some(token) = resume_token {
+            terminal.set_program_resume_token(token);
         }
 
         let pane: Arc<dyn Pane> = match child_result {

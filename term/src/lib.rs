@@ -26,7 +26,9 @@ use wezterm_surface::SequenceNo;
 pub mod config;
 pub use config::TerminalConfiguration;
 
+mod program_resume;
 pub mod program_status;
+pub use program_resume::{ProgramResumeRecord, PROGRAM_RESUME_TOKEN_ENV};
 pub use program_status::{ProgramStatusRecord, ProgramStatusState};
 
 pub mod input;

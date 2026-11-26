@@ -794,6 +794,13 @@ impl<'a> Performer<'a> {
                     self.program_status_did_change();
                 }
             }
+            OperatingSystemCommand::Unspecified(unspec)
+                if unspec.first().map(Vec::as_slice) == Some(b"7577") =>
+            {
+                if let [_, body] = unspec.as_slice() {
+                    self.program_resume.apply(body);
+                }
+            }
             OperatingSystemCommand::Unspecified(unspec) => {
                 if self.config.log_unknown_escape_sequences() {
                     let mut output = String::new();

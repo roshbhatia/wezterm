@@ -240,6 +240,9 @@ pub trait Pane: Downcast + Send + Sync {
     fn get_program_status(&self) -> Vec<wezterm_term::ProgramStatusRecord> {
         Vec::new()
     }
+    fn get_program_resume(&self) -> Option<wezterm_term::ProgramResumeRecord> {
+        None
+    }
     fn get_progress(&self) -> Progress {
         Progress::None
     }
